@@ -1,0 +1,37 @@
+/neoeye/
+/Probki/
+
+# Systemowe
+.DS_Store
+Thumbs.db
+
+# Logi i cache
+*.log
+*.tmp
+*.cache
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.venv/
+env/
+venv/
+
+# IDE
+.vscode/
+.idea/
+
+# Build / output
+build/
+dist/
+*.egg-info/
+
+# Jupyter
+.ipynb_checkpoints/
+
+# Dane tymczasowe / prywatne
+*.sqlite3
+*.db
+
