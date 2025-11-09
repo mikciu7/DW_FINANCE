@@ -160,16 +160,9 @@ class QuarterlyCashFlow():
         return tidy
     
     
-    def get_latest_quarterly_report(self, ticker, scale=1e6):
-        """
-        Uniwersalna funkcja która bierze 
-        """
-        
-        company = Company(ticker)
-    
-        filing = company.get_filings(form="10-Q").latest()
-    
-        self.xbrl = filing.xbrl()
+    def get_quarterly_report(self, xbrl, scale=1e6):
+  
+        self.xbrl = xbrl
         stmt = self.xbrl.statements.cashflow_statement()
         df = stmt.to_dataframe()
     

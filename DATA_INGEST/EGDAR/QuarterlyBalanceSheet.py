@@ -166,16 +166,9 @@ class QuarterlyBalanceSheet():
         return tidy
     
     
-    def get_latest_quarterly_report(self, ticker, scale=1e6):
-        """
-        Uniwersalna funkcja która bierze 
-        """
-        
-        company = Company(ticker)
+    def get_quarterly_report(self, xbrl, scale=1e6):
     
-        filing = company.get_filings(form="10-Q").latest()
-    
-        self.xbrl = filing.xbrl()
+        self.xbrl = xbrl
         stmt = self.xbrl.statements.balance_sheet()
         df = stmt.to_dataframe()
     

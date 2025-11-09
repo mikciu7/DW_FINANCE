@@ -2,24 +2,24 @@ import os
 from edgar import Company, set_identity
 import pandas as pd
 import re
-
+from datetime import datetime
+import io
 
 class QuarterlyIncomeStatement():
 
     def __init__(self):
         """
         Inicjuje najważniejsze obiekty
-
         current_quarter_report -> oczyszczony dataframe zawierający dane liczbowe
         totals -> Najważniejsze zsumowane kategorie
         distros -> Rozłożenie głównych kategorii na jakieś części (trudne do zkluczowania)
-        
         """
         
         set_identity("Mikolaj Ciuba ciubamikolaj22@gmail.com")
         self.current_quarter_report = None
         self.totals = None
         self.distros = None
+        self.xbrl = None
 
 
     @staticmethod
@@ -54,17 +54,14 @@ class QuarterlyIncomeStatement():
         tidy = out[keep_cols + date_cols].sort_values("label").reset_index(drop=True)
         return tidy
     
+            
     
-    def get_latest_quarterly_report(self, ticker, scale=1e6):
+    def get_quarterly_report(self, xbrl, scale=1e6):
         """
-        Funkcja zwracająca przekształocną tabelę wyjściową raportu kwartałowego
+        Funkcja zwracająca przekształcona tabelę wyjściową raportu kwartałowego
         """
         
-        company = Company(ticker)
-    
-        filing = company.get_filings(form="10-Q").latest()
-    
-        self.xbrl = filing.xbrl()
+        self.xbrl = xbrl
         stmt = self.xbrl.statements.income_statement()
         df = stmt.to_dataframe()
     
@@ -89,7 +86,6 @@ class QuarterlyIncomeStatement():
         return self.combine_totals_and_distros()
 
     
-
     def combine_totals_and_distros(self) -> pd.DataFrame:
         """
         Funkcja tworząca kolumnę INCOME_STATEMENT_STEP grupującą dystrybucję jakiejś głównej kategorii z tą kategorią ze statementu
