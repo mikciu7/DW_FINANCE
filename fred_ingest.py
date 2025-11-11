@@ -78,6 +78,7 @@ def save_to_s3(df, s3_bucket, s3_key):
         print(f"ERROR: Nieoczekiwany błąd podczas zapisu na S3: {e}")
         return False
 
+# --------------------------------------------------------------------------------------------------------------------
 
 def save_locally(df, file_name, local_dir):
 
@@ -95,7 +96,7 @@ def save_locally(df, file_name, local_dir):
     except Exception as e:
         print(f"Nie udało się nawet zapisać lokalnie: {e}")
 
-
+# --------------------------------------------------------------------------------------------------------------------
 def fred_ingest(series_list, start_date, end_date):
 
     for series_id in series_list:
@@ -124,7 +125,7 @@ def fred_ingest(series_list, start_date, end_date):
         
     print("\n--- Zakończono cały proces ingestu ---")
 
-
+# --------------------------------------------------------------------------------------------------------------------
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
         description="Pobiera dane z FRED API i ładuje do warstwy Bronze na S3."
