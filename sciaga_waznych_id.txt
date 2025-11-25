@@ -1,0 +1,33 @@
+Główny katalog (Root): 0
+
+Pieniądze, Bankowość i Finanse: 32991
+
+Stopy Procentowe (Interest Rates): 22 <--- Tu są stopy Fed, obligacje, LIBOR
+
+Kursy Walut (Exchange Rates): 15
+
+Dane Monetarne (Monetary Data): 24 <--- Podaż pieniądza M1, M2
+
+Ceny (Prices): 32455
+
+Ceny Konsumenckie (CPI): 9 <--- Inflacja
+
+Ceny Producenta (PPI): 32297
+
+Rynek Pracy (Labor Markets): 10
+
+Bezrobocie (Unemployment Rate): 32447
+
+Rachunki Narodowe (National Accounts): 32992
+
+PKB (National Income & Product Accounts): 18
+
+Produkcja i Aktywność Biznesowa: 1
+
+Produkcja Przemysłowa: 32216
+
+
+NOTE, TODO:
+Rozwiazanie wielu plikow w folderze daily, monthly/ quarterly:
+Bedzie trigger (AWS Notification), trigger bedzie wywolywany na fred/daily, fred/monthly, fred/quarterly zawsze gdy pojawi sie tam wiecej niz jeden plik. 
+Laczy po prostu wszystkie pliki + nwm usuwa puste pola jesli sa, wrzuca to do Silver zeby nie bylo petli w kolko ktora zuzywa zasoby na AWS.
