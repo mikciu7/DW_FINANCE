@@ -1,0 +1,33 @@
+# --- saferty 
+.env
+.env.*
+*_credentials.csv
+aws.txt
+secrets/
+
+# --- Python garbage
+__pycache__/
+*.pyc
+venv/
+.venv/
+env/
+
+# --- local data && backups ---
+fred_local_data/
+local_backup/
+*.csv
+*.json
+
+# --- notes
+*.log
+notatka*.txt
+
+# --- all images 
+*.png
+*.jpg
+*.jpeg
+
+# --- ide and OS files
+.DS_Store
+.idea/
+.vscode/
