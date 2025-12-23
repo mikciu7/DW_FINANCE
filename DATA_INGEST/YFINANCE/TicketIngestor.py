@@ -2,7 +2,7 @@ import boto3
 import yfinance as yf
 import pandas as pd
 import io
-from datetime import datetime
+from datetime import datetime,timezone
 import os
 from dotenv import load_dotenv
 
@@ -10,11 +10,10 @@ load_dotenv()
 
 session = boto3.Session(
     aws_access_key_id=os.getenv('AWS_ACCESS_KEY'),
-    aws_secret_access_key= os.getenv('AWS_SECRET_ACCES_KEY'),
-    aws_session_token=os.getenv('AWS_SESSION_TOKEN'),
+    aws_secret_access_key= os.getenv('AWS_SECRET_ACCESS_KEY'),
     region_name="us-east-1"
 )
-BUCKET_NAME = "antekpw-data-lake"
+BUCKET_NAME = "neo-eye-prod"
 s3 = session.client("s3")
 
 class TickerIngestor:
@@ -22,8 +21,8 @@ class TickerIngestor:
         self.s3 = s3
         self.period = period
         self.interval = interval
-        self.run_id = datetime.now(datetime.UTC).strftime("%Y%m%dT%H%M%S")
-        self.ingestion_time = datetime.now(datetime.UTC).isoformat()
+        self.run_id = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%S")
+        self.ingestion_time = datetime.now(timezone.utc).isoformat()
         self.intervals_dict = {
         '1d' : "daily",
         "1mo" : "monthly",
@@ -39,11 +38,8 @@ class TickerIngestor:
     def _build_prefix(self,symbol):
         date = self.ingestion_time[:10]
         
-        prefix = f"YFINANCE/{self.symbol}/"
-        f"symbol={symbol}/"
-        f"frequency={self.intervals_dict[self.interval]}/"
-        f"ingestion_date={date}/"
-        f"run_id={self.run_id}/"
+        prefix = f"bronze/yahoo/{self.intervals_dict[self.interval]}/{symbol}/ingestion_date={date}/run_id={self.run_id}"
+
         
         return prefix
 
@@ -56,7 +52,7 @@ class TickerIngestor:
         
         s3.put_object(
             Bucket=BUCKET_NAME,
-            Key=f"{prefix}.csv",
+            Key=f"{prefix}",
             Body = history_csv
         )
     def ingest_batch(self, symbols):
@@ -73,4 +69,4 @@ symbols  = ["AAPL", "MSFT", "GOOGL", "AMZN"]
 ingestor.ingest_batch(symbols)
 
 
-
+ 
