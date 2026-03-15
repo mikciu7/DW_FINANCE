@@ -1,0 +1,39 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.Python
+*.egg-info/
+dist/
+build/
+venv/
+.venv/
+*.egg
+
+# Backend runtime files
+backend/med.db
+backend/stock_prediction_model.pkl
+
+# Data files (large, not for repo)
+data/
+*.xlsx
+*.csv
+
+# Jupyter
+.ipynb_checkpoints/
+*.ipynb
+
+# Frontend
+frontend/node_modules/
+frontend/dist/
+frontend/.env.production
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+*.swp
