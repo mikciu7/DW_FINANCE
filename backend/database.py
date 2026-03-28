@@ -1,9 +1,24 @@
-import sqlite3
+import os
+import psycopg2
+from psycopg2.extras import RealDictCursor
+from dotenv import load_dotenv
 import os
 
+
+
+load_dotenv()
+
+
+
+DB_HOST = os.getenv("DB_HOST")
+DB_NAME = os.getenv("DB_NAME")
+DB_USER = os.getenv("DB_USER")
+DB_PASS = os.getenv("DB_PASS")
+DB_PORT = os.getenv("DB_PORT")
 DB_PATH = os.path.join(os.path.dirname(__file__), "med.db")
 
 TICKERS = ["AAPL", "AMZN", "GOOG", "META", "MSFT"]
+
 
 CATS = [
     "revenue", "operating_income", "net_income", "gross_profit",
@@ -17,6 +32,8 @@ CATS = [
     "net_cash_from_financing_activities", "net_change_in_cash",
     "earnings_per_share_basic_", "earnings_per_share_diluted_",
 ]
+
+
 
 FEATURE_COLS = [
     "revenue_acceleration", "price_ma_4q", "accounts_payable_std_8",
@@ -33,59 +50,79 @@ FEATURE_COLS = [
 ]
 
 
+
+
 def get_connection():
-    conn = sqlite3.connect(DB_PATH)
-    conn.row_factory = sqlite3.Row
+
+
+    conn = psycopg2.connect(
+        host=DB_HOST,
+        database=DB_NAME,
+        user=DB_USER,
+        password=DB_PASS,
+        port=DB_PORT
+
+    )
+
     return conn
 
 
 def init_db():
-    cats_cols = ", ".join(f"{c} REAL" for c in CATS)
-    feature_cols = ", ".join(f"{c} REAL" for c in FEATURE_COLS)
 
+    cats_cols = ", ".join(f"{c} DOUBLE PRECISION" for c in CATS)
+    feature_cols = ", ".join(f"{c} DOUBLE PRECISION" for c in FEATURE_COLS)
+
+    # W Postgresie używamy DOUBLE PRECISION zamiast REAL dla lepszej precyzji
+
+    # i SERIAL zamiast AUTOINCREMENT
     with get_connection() as conn:
-        conn.executescript(f"""
-            CREATE TABLE IF NOT EXISTS prices (
-                ticker TEXT NOT NULL,
-                date   TEXT NOT NULL,
-                open   REAL,
-                high   REAL,
-                low    REAL,
-                close  REAL,
-                volume INTEGER,
-                PRIMARY KEY (ticker, date)
-            );
+        with conn.cursor() as cur:
+            cur.execute(f"""
 
-            CREATE TABLE IF NOT EXISTS financials (
-                ticker TEXT NOT NULL,
-                date   TEXT NOT NULL,
-                {cats_cols},
-                PRIMARY KEY (ticker, date)
-            );
+                CREATE TABLE IF NOT EXISTS prices (
 
-            CREATE TABLE IF NOT EXISTS features (
-                ticker TEXT NOT NULL,
-                date   TEXT NOT NULL,
-                close_price REAL,
-                {feature_cols},
-                PRIMARY KEY (ticker, date)
-            );
+                    ticker TEXT NOT NULL,
+                    date   DATE NOT NULL,
+                    open   DOUBLE PRECISION,
+                    high   DOUBLE PRECISION,
+                    low    DOUBLE PRECISION,
+                    close  DOUBLE PRECISION,
+                    volume BIGINT,
+                    PRIMARY KEY (ticker, date)
+                );
 
-            CREATE TABLE IF NOT EXISTS predictions (
-                ticker           TEXT NOT NULL,
-                date             TEXT NOT NULL,
-                predicted_return REAL,
-                PRIMARY KEY (ticker, date)
-            );
+                CREATE TABLE IF NOT EXISTS financials (
+                    ticker TEXT NOT NULL,
+                    date   DATE NOT NULL,
+                    {cats_cols},
+                    PRIMARY KEY (ticker, date)
+                );
 
-            CREATE TABLE IF NOT EXISTS model_metrics (
-                id           INTEGER PRIMARY KEY AUTOINCREMENT,
-                trained_at   TEXT,
-                r2           REAL,
-                mae          REAL,
-                rmse         REAL,
-                hit_rate     REAL,
-                n_features   INTEGER,
-                n_observations INTEGER
-            );
-        """)
+                CREATE TABLE IF NOT EXISTS features (
+                    ticker TEXT NOT NULL,
+                    date   DATE NOT NULL,
+                    close_price DOUBLE PRECISION,
+                    {feature_cols},
+                    PRIMARY KEY (ticker, date)
+                );
+
+                CREATE TABLE IF NOT EXISTS predictions (
+                    ticker           TEXT NOT NULL,
+                    date             DATE NOT NULL,
+                    predicted_return DOUBLE PRECISION,
+                    PRIMARY KEY (ticker, date)
+                );
+
+                CREATE TABLE IF NOT EXISTS model_metrics (
+                    id             SERIAL PRIMARY KEY,
+                    trained_at     TEXT,
+                    r2             DOUBLE PRECISION,
+                    mae            DOUBLE PRECISION,
+                    rmse           DOUBLE PRECISION,
+                    hit_rate       DOUBLE PRECISION,
+                    n_features     INTEGER,
+                    n_observations INTEGER
+                );
+            """)
+
+        conn.commit()

@@ -1,11 +1,12 @@
 """
 ML service: trains RandomForestRegressor on features, stores model as pkl,
-and serves predictions.
+and serves predictions. Adapted for PostgreSQL.
 """
 import os
 import pickle
 import numpy as np
 import pandas as pd
+from psycopg2.extras import RealDictCursor
 from sklearn.ensemble import RandomForestRegressor
 from sklearn.model_selection import TimeSeriesSplit, cross_val_score
 from sklearn.metrics import mean_squared_error, mean_absolute_error
@@ -14,7 +15,7 @@ from backend.database import get_connection, FEATURE_COLS, TICKERS
 
 PKL_PATH = os.path.join(os.path.dirname(__file__), "..", "stock_prediction_model.pkl")
 
-_model_cache: dict = {}  
+_model_cache: dict = {}
 
 
 def _load_pkl() -> bool:
@@ -34,14 +35,17 @@ def _compute_return_3m(ticker: str, report_dates: pd.Series) -> pd.Series:
     from the daily prices table and compute the percentage return.
     """
     with get_connection() as conn:
-        rows = conn.execute(
-            "SELECT date, close FROM prices WHERE ticker=? ORDER BY date", (ticker,)
-        ).fetchall()
+        with conn.cursor(cursor_factory=RealDictCursor) as cur:
+            # ZMIANA: %s zamiast ?
+            cur.execute(
+                "SELECT date, close FROM prices WHERE ticker=%s ORDER BY date", (ticker,)
+            )
+            rows = cur.fetchall()
 
     if not rows:
         return pd.Series(np.nan, index=report_dates.index)
 
-    price_df = pd.DataFrame(rows, columns=["date", "close"])
+    price_df = pd.DataFrame([dict(r) for r in rows])
     price_df["date"] = pd.to_datetime(price_df["date"])
     price_df = price_df.set_index("date").sort_index()
 
@@ -69,10 +73,12 @@ def _get_training_data() -> tuple[pd.DataFrame, pd.Series] | tuple[None, None]:
     price change 90 calendar days after each quarterly report date.
     """
     with get_connection() as conn:
-        rows = conn.execute(
-            "SELECT ticker, date, close_price, " + ", ".join(FEATURE_COLS) +
-            " FROM features ORDER BY ticker, date"
-        ).fetchall()
+        with conn.cursor(cursor_factory=RealDictCursor) as cur:
+            cur.execute(
+                "SELECT ticker, date, close_price, " + ", ".join(FEATURE_COLS) +
+                " FROM features ORDER BY ticker, date"
+            )
+            rows = cur.fetchall()
 
     if not rows:
         return None, None
@@ -81,10 +87,15 @@ def _get_training_data() -> tuple[pd.DataFrame, pd.Series] | tuple[None, None]:
     df["date"] = pd.to_datetime(df["date"])
 
     targets = []
+    # Był mały błąd w Twoim kodzie, zmienna grp nie była przekazywana wyżej
+    # W bloku `for ticker, grp in df.groupby("ticker"):` brakowało przypisania
     for ticker, grp in df.groupby("ticker"):
         grp = grp.sort_values("date").reset_index(drop=True)
         grp["return_3m"] = _compute_return_3m(ticker, grp["date"])
         targets.append(grp)
+
+    if not targets:
+        return None, None
 
     df = pd.concat(targets).sort_values(["ticker", "date"]).reset_index(drop=True)
 
@@ -158,11 +169,19 @@ def train_model():
 
     # Persist metrics to DB
     with get_connection() as conn:
-        conn.execute(
-            "INSERT INTO model_metrics (trained_at, r2, mae, rmse, hit_rate, n_features, n_observations) VALUES (datetime('now'), ?, ?, ?, ?, ?, ?)",
-            (metrics["r2"], metrics["mae"], metrics["rmse"], metrics["hit_rate"],
-             len(FEATURE_COLS), len(y)),
-        )
+        with conn.cursor() as cur:
+            # ZMIANA: Użycie CURRENT_TIMESTAMP zamiast datetime('now') z SQLite
+            # ZMIANA: %s zamiast ?
+            cur.execute(
+                """
+                INSERT INTO model_metrics 
+                (trained_at, r2, mae, rmse, hit_rate, n_features, n_observations) 
+                VALUES (CURRENT_TIMESTAMP, %s, %s, %s, %s, %s, %s)
+                """,
+                (metrics["r2"], metrics["mae"], metrics["rmse"], metrics["hit_rate"],
+                 len(FEATURE_COLS), len(y))
+            )
+        conn.commit() # ZMIANA: Commit zapisu!
 
     global _model_cache
     _model_cache = model_data
@@ -190,7 +209,6 @@ def get_feature_importance() -> list[dict]:
     if fi is None:
         return []
     return fi.to_dict(orient="records")
-
 
 
 def predict(ticker: str) -> dict | None:

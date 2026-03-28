@@ -1,10 +1,11 @@
 """
 Feature engineering pipeline.
 Reads raw CATS data from financials + close prices from prices,
-computes 30 model features, and stores them in the features table.
+computes 30 model features, and stores them in the features table (PostgreSQL).
 """
 import numpy as np
 import pandas as pd
+from psycopg2.extras import RealDictCursor
 from backend.database import get_connection, FEATURE_COLS, TICKERS
 
 
@@ -27,9 +28,12 @@ def _get_quarterly_prices(ticker: str, dates: pd.Series) -> pd.Series:
     """Return close prices matched to quarterly report dates."""
 
     with get_connection() as conn:
-        rows = conn.execute(
-            "SELECT date, close FROM prices WHERE ticker=? ORDER BY date", (ticker,)
-        ).fetchall()
+        with conn.cursor(cursor_factory=RealDictCursor) as cur:
+            # ZMIANA: %s zamiast ?
+            cur.execute(
+                "SELECT date, close FROM prices WHERE ticker=%s ORDER BY date", (ticker,)
+            )
+            rows = cur.fetchall()
 
     if not rows:
         return pd.Series(np.nan, index=dates.index)
@@ -54,9 +58,13 @@ def compute_features(ticker: str) -> pd.DataFrame | None:
     """Compute 30 model features for a single ticker from DB data."""
 
     with get_connection() as conn:
-        rows = conn.execute(
-            "SELECT * FROM financials WHERE ticker=? ORDER BY date", (ticker,)
-        ).fetchall()
+        with conn.cursor(cursor_factory=RealDictCursor) as cur:
+            # ZMIANA: %s zamiast ?
+            cur.execute(
+                "SELECT * FROM financials WHERE ticker=%s ORDER BY date", (ticker,)
+            )
+            rows = cur.fetchall()
+            
     if not rows:
         return None
 
@@ -68,12 +76,13 @@ def compute_features(ticker: str) -> pd.DataFrame | None:
     df["close_price"] = _get_quarterly_prices(ticker, df["date"])
 
     # ── Basic ratios ─────────────────────────────────────────────────────────
-    df["profit_margin"] = df["net_income"] / df["revenue"]
-    df["roa"] = df["net_income"] / df["total_assets"]
-    df["roe"] = df["net_income"] / df["total_stockholders_equity"]
-    df["operating_cf_margin"] = df["net_cash_from_operating_activities"] / df["revenue"]
-    df["debt_to_assets"] = df["total_liabilities"] / df["total_assets"]
-    df["cf_to_debt"] = df["net_cash_from_operating_activities"] / df["total_liabilities"]
+    # (Zabezpieczenie przed dzieleniem przez zero dla Postgresa)
+    df["profit_margin"] = df["net_income"] / df["revenue"].replace(0, np.nan)
+    df["roa"] = df["net_income"] / df["total_assets"].replace(0, np.nan)
+    df["roe"] = df["net_income"] / df["total_stockholders_equity"].replace(0, np.nan)
+    df["operating_cf_margin"] = df["net_cash_from_operating_activities"] / df["revenue"].replace(0, np.nan)
+    df["debt_to_assets"] = df["total_liabilities"] / df["total_assets"].replace(0, np.nan)
+    df["cf_to_debt"] = df["net_cash_from_operating_activities"] / df["total_liabilities"].replace(0, np.nan)
 
     # ── Growth rates ─────────────────────────────────────────────────────────
     df["revenue_growth_qoq"] = df["revenue"].pct_change(1, fill_method=None)
@@ -146,15 +155,27 @@ def store_features(ticker: str, df: pd.DataFrame):
         if c not in df.columns:
             df[c] = None
 
-    placeholders = ", ".join(["?"] * len(cols))
-    col_names = ", ".join(cols)
+    # ZMIANA: Zastępujemy NaN z Pandas na None (NULL w bazie)
+    df = df.where(pd.notnull(df), None)
 
-    rows = df[cols].where(df[cols].notna(), other=None).values.tolist()
+    # ZMIANA: %s zamiast ?
+    placeholders = ", ".join(["%s"] * len(cols))
+    col_names = ", ".join(cols)
+    
+    # ZMIANA: Logika Upsert dla PostgreSQL
+    updates = ", ".join([f"{c} = EXCLUDED.{c}" for c in ["close_price"] + FEATURE_COLS])
+    query = f"""
+        INSERT INTO features ({col_names}) 
+        VALUES ({placeholders})
+        ON CONFLICT (ticker, date) DO UPDATE SET 
+        {updates}
+    """
+
+    rows = df[cols].values.tolist()
     with get_connection() as conn:
-        conn.executemany(
-            f"INSERT OR REPLACE INTO features ({col_names}) VALUES ({placeholders})",
-            rows,
-        )
+        with conn.cursor() as cur:
+            cur.executemany(query, rows)
+        conn.commit() # ZMIANA: Commit do bazy
 
 
 def run_feature_pipeline(tickers: list[str] = TICKERS):
@@ -171,23 +192,44 @@ def run_feature_pipeline(tickers: list[str] = TICKERS):
 def get_features(ticker: str | None = None) -> list[dict]:
     cols = ", ".join(["ticker", "date", "close_price"] + FEATURE_COLS)
     with get_connection() as conn:
-        if ticker:
-            rows = conn.execute(
-                f"SELECT {cols} FROM features WHERE ticker=? ORDER BY date", (ticker,)
-            ).fetchall()
-        else:
-            rows = conn.execute(
-                f"SELECT {cols} FROM features ORDER BY ticker, date"
-            ).fetchall()
-    return [dict(r) for r in rows]
+        with conn.cursor(cursor_factory=RealDictCursor) as cur:
+            if ticker:
+                # ZMIANA: %s zamiast ?
+                cur.execute(
+                    f"SELECT {cols} FROM features WHERE ticker=%s ORDER BY date", (ticker,)
+                )
+            else:
+                cur.execute(
+                    f"SELECT {cols} FROM features ORDER BY ticker, date"
+                )
+            rows = cur.fetchall()
+            
+    # ZMIANA: Konwersja daty na string
+    result = []
+    for r in rows:
+        row_dict = dict(r)
+        if row_dict.get('date'):
+            row_dict['date'] = str(row_dict['date'])
+        result.append(row_dict)
+        
+    return result
 
 
 def get_latest_features(ticker: str) -> dict | None:
     """Return the most recent feature row for a ticker (for live prediction)."""
     cols = ", ".join(["ticker", "date", "close_price"] + FEATURE_COLS)
     with get_connection() as conn:
-        row = conn.execute(
-            f"SELECT {cols} FROM features WHERE ticker=? ORDER BY date DESC LIMIT 1",
-            (ticker,),
-        ).fetchone()
-    return dict(row) if row else None
+        with conn.cursor(cursor_factory=RealDictCursor) as cur:
+            # ZMIANA: %s zamiast ?
+            cur.execute(
+                f"SELECT {cols} FROM features WHERE ticker=%s ORDER BY date DESC LIMIT 1",
+                (ticker,)
+            )
+            row = cur.fetchone()
+            
+    if row:
+        row_dict = dict(row)
+        if row_dict.get('date'):
+            row_dict['date'] = str(row_dict['date'])
+        return row_dict
+    return None
