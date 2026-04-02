@@ -43,6 +43,7 @@ def fetch_and_store_prices(tickers: list[str] = TICKERS, full_history: bool = Fa
             with get_connection() as conn:
                 with conn.cursor() as cur:
                     cur.executemany(query, rows)
+                    print("udalo sie wstawic ceny dla", ticker)
                 conn.commit()  # ZMIANA: Wymagane zapisanie zmian w Postgresie!
 
         except Exception as e:
