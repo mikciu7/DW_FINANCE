@@ -2,7 +2,7 @@ import axios from "axios";
 
 const BASE = import.meta.env.VITE_API_URL ?? "/api";
 
-const api = axios.create({ baseURL: BASE });
+const apiClient = axios.create({ baseURL: BASE });
 
 export interface PriceRow {
   ticker: string;
@@ -72,15 +72,30 @@ export interface Prediction {
   close_price: number;
 }
 
-export const fetchTickers = () => api.get<string[]>("/tickers").then((r) => r.data);
+// interfejs pod macro
+export interface MacroData {
+    date: string;
+    data_type: string;
+    file_date: string;
+    [key: string]: any; // Pozwala na dynamiczne klucze (symbole FRED)
+}
+
+
+export const fetchTickers = () => apiClient.get<string[]>("/tickers").then((r) => r.data);
 export const fetchPrices = (ticker?: string) =>
-  api.get<PriceRow[]>(ticker ? `/financials/price/${ticker}` : "/financials/price").then((r) => r.data);
+  apiClient.get<PriceRow[]>(ticker ? `/financials/price/${ticker}` : "/financials/price").then((r) => r.data);
 export const fetchEdgar = (ticker?: string) =>
-  api.get<FinancialRow[]>(ticker ? `/financials/edgar/${ticker}` : "/financials/edgar").then((r) => r.data);
+  apiClient.get<FinancialRow[]>(ticker ? `/financials/edgar/${ticker}` : "/financials/edgar").then((r) => r.data);
 export const fetchFeatures = (ticker?: string) =>
-  api.get<FeatureRow[]>(ticker ? `/financials/features/${ticker}` : "/financials/features").then((r) => r.data);
-export const fetchModelMetrics = () => api.get<ModelMetrics>("/model/metrics").then((r) => r.data);
+  apiClient.get<FeatureRow[]>(ticker ? `/financials/features/${ticker}` : "/financials/features").then((r) => r.data);
+export const fetchModelMetrics = () => apiClient.get<ModelMetrics>("/model/metrics").then((r) => r.data);
 export const fetchFeatureImportance = () =>
-  api.get<FeatureImportance[]>("/model/feature_importance").then((r) => r.data);
+  apiClient.get<FeatureImportance[]>("/model/feature_importance").then((r) => r.data);
 export const fetchPrediction = (ticker: string) =>
-  api.get<Prediction>(`/model/predict/${ticker}`).then((r) => r.data);
+  apiClient.get<Prediction>(`/model/predict/${ticker}`).then((r) => r.data);
+// eksport nowych funkcji pod fred:
+export const fetchMacroFileDates = () =>
+    apiClient.get<string[]>("/macro/file-dates").then((r) => r.data);
+
+export const fetchMacroData = (fileDate: string) =>
+    apiClient.get<MacroData[]>(`/macro/data?file_date=${fileDate}`).then((r) => r.data);
