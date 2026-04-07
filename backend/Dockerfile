@@ -18,7 +18,7 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 # Kopiujemy całą resztę kodu backendu
-COPY . .
+COPY . /app/backend
 
 # Wystawiamy port, na którym nasłuchuje FastAPI
 EXPOSE 8000
