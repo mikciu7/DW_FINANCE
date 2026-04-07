@@ -50,6 +50,20 @@ FEATURE_COLS = [
 ]
 
 
+# Aktualizacja fred
+# zmienne makroekonomiczne, nazwy kolumn potrzebne do inicjacji tabel
+MACRO_COLS = [
+    # Daily
+    "bamlc0a4cbbb", "bamlh0a0hym2", "dcoilwtico", "dexchus", "dexuseu", "dexusuk",
+    "dff", "dgs1", "dgs1mo", "dgs2", "dgs3mo", "dgs6mo", "sp500",
+    # Monthly
+    "cscicp03usm665s", "drsfrmacbs", "fedfunds", "houst", "m1sl", "permit",
+    "psavert", "tcu", "umcsent", "cpiaucsl", "m2sl",
+    # Quarterly
+    "gdpc1", "gfdebtn", "mortgage30us", "stlfsi4", "t10y2y", "unrate"
+]
+
+
 
 
 def get_connection():
@@ -124,5 +138,21 @@ def init_db():
                     n_observations INTEGER
                 );
             """)
-
         conn.commit()
+
+    # inicjalizacja dla tabel danych z fred
+    with get_connection() as cn:
+        with cn.cursor() as cr:
+            cr.execute(f"""
+                CREATE TABLE IF NOT EXISTS macro_data (
+                    id             SERIAL PRIMARY KEY,
+                    date           DATE NOT NULL,          -- Data w szeregu czasowym (np. 1990-01-01)
+                    data_type      TEXT NOT NULL,          -- 'daily', 'monthly', 'quarterly'
+                    file_date      DATE NOT NULL,          -- Data pobrania/pliku (z nazwy pliku S3)
+                    {", ".join([f"{col} DOUBLE PRECISION" for col in MACRO_COLS])},
+                    -- Unikalność: ten sam odczyt dla tej samej daty z tego samego pliku
+                    UNIQUE(date, data_type, file_date)
+                );
+            """
+            )
+        cn.commit()

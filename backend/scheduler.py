@@ -4,12 +4,15 @@ from backend.services.price_service import fetch_and_store_prices
 from backend.services.edgar_service import fetch_new_filings, get_latest_financial_date
 from backend.services.feature_service import run_feature_pipeline
 from backend.services import ml_service
+from backend.services.fred_service import load_fred_data_from_source
 
 
 def daily_price_refresh():
     print("[scheduler] Running daily price refresh...")
     fetch_and_store_prices(TICKERS)
     print("[scheduler] Price refresh done.")
+    #tymczasowo
+    #load_fred_data_from_source("DW_FINANCE/backend/data_templates/fred")
 
 
 def edgar_refresh():
