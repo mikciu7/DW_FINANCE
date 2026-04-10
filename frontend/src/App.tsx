@@ -3,12 +3,14 @@ import Overview from "./pages/Overview";
 import Financials from "./pages/Financials";
 import Features from "./pages/Features";
 import Model from "./pages/Model";
+import Agent from "./pages/Agent";
 
 const NAV = [
   { id: "overview", label: "Ceny Akcji" },
   { id: "financials", label: "Raporty Finansowe" },
   { id: "features", label: "Features" },
   { id: "model", label: "Model" },
+  { id: "agent", label: "Agent Makro" },
 ];
 
 export default function App() {
@@ -45,6 +47,7 @@ export default function App() {
         {page === "financials" && <Financials />}
         {page === "features" && <Features />}
         {page === "model" && <Model />}
+        {page === "agent" && <Agent />}
       </main>
     </div>
   );

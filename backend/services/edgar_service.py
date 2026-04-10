@@ -8,6 +8,8 @@ import os
 import pandas as pd
 from psycopg2.extras import RealDictCursor
 from backend.database import get_connection, CATS, TICKERS
+from backend.services.llm_parser_service import parse_pre2010
+
 # Make sure the project root (MED/) is on the path so StatementsFetcher can be imported
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
 if ROOT not in sys.path:
@@ -34,6 +36,10 @@ def load_csv_financials(data_dir: str):
             df = df.loc[:, ~df.columns.duplicated()]
             df["ticker"] = ticker
             df["date"] = pd.to_datetime(df["date"]).dt.strftime("%Y-%m-%d")
+            # LLM parser dla danych pre-2010
+            mask = pd.to_datetime(df["date"]) < "2010-01-01"
+            if mask.any():
+                df.loc[mask] = parse_pre2010(df.loc[mask])
 
             # Keep only CATS columns that exist in this CSV
             available = [c for c in CATS if c in df.columns]
