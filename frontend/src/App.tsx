@@ -4,6 +4,7 @@ import Financials from "./pages/Financials";
 import Features from "./pages/Features";
 import Model from "./pages/Model";
 import Macro from "./pages/Macro";
+import Agent from "./pages/Agent";
 
 const NAV = [
   { id: "overview", label: "Ceny Akcji" },
@@ -11,6 +12,7 @@ const NAV = [
   { id: "features", label: "Features" },
   { id: "model", label: "Model" },
     { id: "macro", label: "Zmienne Makroekonomiczne" },
+    { id: "agent", label: "Agent Makro" },
 ];
 
 export default function App() {
@@ -48,6 +50,7 @@ export default function App() {
         {page === "features" && <Features />}
         {page === "model" && <Model />}
           {page === "macro" && <Macro />}
+          {page === "agent" && <Agent />}
       </main>
     </div>
   );
