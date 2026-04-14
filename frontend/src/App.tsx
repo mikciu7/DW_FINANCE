@@ -4,6 +4,7 @@ import Financials from "./pages/Financials";
 import Features from "./pages/Features";
 import Model from "./pages/Model";
 import Macro from "./pages/Macro";
+import Agent from "./pages/Agent";
 
 const NAV = [
   { id: "overview", label: "Ceny Akcji" },
@@ -11,6 +12,7 @@ const NAV = [
   { id: "features", label: "Features" },
   { id: "model", label: "Model" },
     { id: "macro", label: "Zmienne Makroekonomiczne" },
+    { id: "agent", label: "Agent Makro" },
 ];
 
 export default function App() {
@@ -21,8 +23,8 @@ export default function App() {
       <header className="bg-slate-800 border-b border-slate-700 sticky top-0 z-10">
         <div className="max-w-7xl mx-auto px-6 flex items-center gap-8 h-14">
           <div className="flex items-center gap-2">
-            <span className="text-blue-400 font-bold text-lg">MED</span>
-            <span className="text-slate-400 text-sm">Stock Analyzer</span>
+            <span className="text-blue-400 font-bold text-lg">Neo Eye</span>
+            <span className="text-slate-400 text-sm">Kompletna analiza giełdowa</span>
           </div>
           <nav className="flex gap-1">
             {NAV.map((n) => (
@@ -48,6 +50,7 @@ export default function App() {
         {page === "features" && <Features />}
         {page === "model" && <Model />}
           {page === "macro" && <Macro />}
+          {page === "agent" && <Agent />}
       </main>
     </div>
   );

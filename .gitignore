@@ -38,3 +38,7 @@ Thumbs.db
 .idea/
 *.swp
 **/.env
+
+# ec2 enviroment
+myenv/*
+myenv

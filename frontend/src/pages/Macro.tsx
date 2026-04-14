@@ -47,9 +47,11 @@ const Macro = () => {
             fetchMacroData(selectedFileDate).then(setData);
         }
     }, [selectedFileDate]);
+    const excluded_metrics = ['vixcls','walcl','unrate'];
 
     const filteredMetrics = Object.entries(MACRO_METADATA).filter(
-        ([_, info]) => filterType === 'All' || info.interval === filterType
+        ([symbol, info]) =>
+		(filterType === 'All' || info.interval === filterType) && !excluded_metrics.includes(symbol) 
     );
 
     return (
