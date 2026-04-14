@@ -102,7 +102,7 @@ Format dla każdego wydarzenia:
 Bez wstępów i podsumowań."""
 
     # Wywołanie AI
-    wynik_finalny = await _analizuj_ai(raport, instrukcja)
+    wynik_finalny = _analizuj_ai(raport, instrukcja)
 
     #  Zapisz wynik do cache na 15 minut
     GEO_CACHE["data"] = wynik_finalny
@@ -110,7 +110,7 @@ Bez wstępów i podsumowań."""
 
     return wynik_finalny
 
-def get_stocks(tickers: list[str]) -> str:
+async def get_stocks(tickers: list[str]) -> str:
     tickers = tickers[:10]
     raport = ""
     for ticker in tickers:
@@ -120,11 +120,14 @@ def get_stocks(tickers: list[str]) -> str:
         if not feed.entries:
             raport += "Brak wiadomości.\n\n"
             continue
-        for entry in feed.entries[:2]:
-            tresc = _pobierz_tekst(entry.link)
+
+        #  Tutaj też pobieramy 2 newsy naraz (asynchronicznie) dla przyspieszenia
+        tasks = [_pobierz_tekst(entry.link) for entry in feed.entries[:2]]
+        tresci = await asyncio.gather(*tasks)
+
+        for entry, tresc in zip(feed.entries[:2], tresci):
             raport += f"LINK: {entry.link}\nTREŚĆ: {tresc}\n---\n"
         raport += "\n"
-        time.sleep(1)
 
     instrukcja = """Jesteś analitykiem rynku. Dla każdej spółki wyciągnij twarde fakty.
 Ignoruj spółki z "Brak wiadomości".
