@@ -5,6 +5,11 @@ import requests
 from bs4 import BeautifulSoup
 from openai import OpenAI
 from dotenv import load_dotenv
+# przyspieszanie aplikacji
+import asyncio
+import httpx
+from datetime import datetime, timedelta
+
 
 load_dotenv()
 
@@ -20,16 +25,17 @@ def _get_client():
         api_key=os.getenv("OPENROUTER_API_KEY", "")
     )
 
-def _pobierz_tekst(url: str) -> str:
-    try:
-        r = requests.get(url, headers={'User-Agent': 'Mozilla/5.0'}, timeout=10)
-        if r.status_code == 200:
-            soup = BeautifulSoup(r.text, 'html.parser')
-            tekst = " ".join(p.get_text() for p in soup.find_all('p'))
-            return tekst[:2500] + " [...]" if len(tekst) > 100 else "Brak tekstu."
-        return f"Błąd: {r.status_code}"
-    except Exception as e:
-        return f"Błąd: {e}"
+async def _pobierz_tekst(url: str) -> str:
+    async with httpx.AsyncClient() as client:
+        try:
+            r = await client.get(url, headers={'User-Agent': 'Mozilla/5.0'}, timeout=10)
+            if r.status_code == 200:
+                soup = BeautifulSoup(r.text, 'html.parser')
+                tekst = " ".join(p.get_text() for p in soup.find_all('p'))
+                return tekst[:2500] + " [...]" if len(tekst) > 100 else "Brak tekstu."
+            return f"Błąd: {r.status_code}"
+        except Exception as e:
+            return f"Błąd: {e}"
 
 def _analizuj_ai(surowe_dane: str, instrukcja: str) -> str:
     try:
@@ -55,14 +61,33 @@ def _analizuj_ai(surowe_dane: str, instrukcja: str) -> str:
     except Exception as e:
         return f"Błąd AI: {e}"
 
-def get_geopolitics() -> str:
+
+# do cachowania by nie musiec pobierac co chwila tego samego
+GEO_CACHE = {
+    "data": None,
+    "expiry": None
+}
+
+async def get_geopolitics() -> str:
+    # Sprawdź czy mamy ważny cache
+    now = datetime.now()
+    if GEO_CACHE["data"] and GEO_CACHE["expiry"] > now:
+        print("[cache] Zwracam dane z pamięci (ważne do: {})".format(GEO_CACHE["expiry"]))
+        return GEO_CACHE["data"]
+
+    # Jeśli nie ma cache, budujemy raport (Twoja oryginalna logika asynchroniczna)
+    print("[agent] Cache wygasł lub brak danych. Pobieram nowe dane z RSS...")
     raport = ""
     for url_rss in RSS_GEOPOLITYKA:
         feed = feedparser.parse(url_rss)
         tytul = feed.feed.title if hasattr(feed.feed, 'title') else url_rss
         raport += f"--- {tytul} ---\n"
-        for entry in feed.entries[:3]:
-            tresc = _pobierz_tekst(entry.link)
+
+        # Pobieranie treści 3 newsów naraz
+        tasks = [_pobierz_tekst(entry.link) for entry in feed.entries[:3]]
+        tresci = await asyncio.gather(*tasks)
+
+        for entry, tresc in zip(feed.entries[:3], tresci):
             raport += f"TYTUŁ: {entry.title}\nLINK: {entry.link}\nTREŚĆ: {tresc}\n---\n"
 
     instrukcja = """Jesteś analitykiem makro. Wypunktuj wszystkie wiadomości dotyczące
@@ -76,7 +101,14 @@ Format dla każdego wydarzenia:
 
 Bez wstępów i podsumowań."""
 
-    return _analizuj_ai(raport, instrukcja)
+    # Wywołanie AI
+    wynik_finalny = await _analizuj_ai(raport, instrukcja)
+
+    #  Zapisz wynik do cache na 15 minut
+    GEO_CACHE["data"] = wynik_finalny
+    GEO_CACHE["expiry"] = now + timedelta(minutes=15)
+
+    return wynik_finalny
 
 def get_stocks(tickers: list[str]) -> str:
     tickers = tickers[:10]
