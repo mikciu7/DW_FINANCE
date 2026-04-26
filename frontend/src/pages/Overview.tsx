@@ -27,10 +27,9 @@ export default function Overview() {
     const [range, setRange] = useState(1825);
 
     //  useQuery do cachowania
-    const { data: rows = [], isLoading } = useQuery({
-        queryKey: ["prices"], // Unikalny klucz w cache dla cen akcji
-        queryFn: fetchPrices,   // Funkcja pobierająca dane z pliku client.ts
-        // staleTime i gcTime są dziedziczone z QueryClientProvider w main.tsx
+    const { data: rows = [], isLoading } = useQuery<PriceRow[]>({
+        queryKey: ["prices"],
+        queryFn: () => fetchPrices(), // ZAMIANA z: queryFn: fetchPrices
     });
 
     // Logika transformacji danych pozostaje w useMemo dla wydajności

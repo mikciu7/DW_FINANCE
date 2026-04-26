@@ -2,7 +2,7 @@ import axios from "axios";
 
 const BASE = import.meta.env.VITE_API_URL ?? "/api";
 
-const apiClient = axios.create({ baseURL: BASE });
+export const apiClient = axios.create({ baseURL: BASE });
 
 export interface PriceRow {
   ticker: string;

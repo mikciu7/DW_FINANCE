@@ -28,7 +28,7 @@ export default function Features() {
     const [feature, setFeature] = useState("revenue_acceleration");
 
     // Implementacja cachowania danych dla konkretnego tickera
-    const { data: rows = [], isLoading } = useQuery({
+    const { data: rows = [], isLoading } = useQuery<FeatureRow[]>({
         queryKey: ["features", ticker], // Unikalny klucz cache per ticker
         queryFn: () => fetchFeatures(ticker),
         // staleTime (5 min) i gcTime (30 min) są dziedziczone z main.tsx

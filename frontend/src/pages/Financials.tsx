@@ -60,7 +60,7 @@ export default function Financials() {
     const [chartMetric, setChartMetric] = useState("revenue");
 
     // Zastępujemy useEffect i ręczne zarządzanie loadingiem przez useQuery
-    const { data: rows = [], isLoading } = useQuery({
+    const { data: rows = [], isLoading } = useQuery<FinancialRow[]>({
         queryKey: ["edgar", ticker], // Klucz zawiera ticker, więc dane AAPL i MSFT są cachowane oddzielnie
         queryFn: () => fetchEdgar(ticker),
         // Dzięki globalnym ustawieniom w main.tsx, dane będą "świeże" przez 5 minut

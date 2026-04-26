@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { BrainCircuit, Sparkles, Send, FileText, AlertCircle } from "lucide-react";
+import { BrainCircuit, Sparkles, FileText, AlertCircle } from "lucide-react";
 
 import { apiClient } from "../api/client";
 

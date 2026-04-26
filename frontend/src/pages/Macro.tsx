@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Activity, Info, Calendar } from 'lucide-react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { useQuery } from '@tanstack/react-query'; // Import TanStack Query
-import { fetchMacroFileDates, fetchMacroData, type MacroData } from '../api/client';
+import { fetchMacroFileDates, fetchMacroData } from '../api/client';
 
 const MACRO_METADATA: Record<string, { label: string; desc: string; interval: string }> = {
     bamlc0a4cbbb: { label: 'ICE BofA BBB US Corp Index', desc: 'Rentowność obligacji korporacyjnych o ratingu BBB.', interval: 'Daily' },
