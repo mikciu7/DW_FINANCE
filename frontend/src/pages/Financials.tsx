@@ -1,10 +1,7 @@
-import { useState, useMemo } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useState } from "react";
 import { fetchEdgar } from "../api/client";
-import type { FinancialRow } from "../api/client";
-import {
-    BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid,
-} from "recharts";
+import { useQuery } from "@tanstack/react-query";
+import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from "recharts";
 
 const TICKERS = ["AAPL", "AMZN", "GOOG", "META", "MSFT"];
 
@@ -59,26 +56,23 @@ export default function Financials() {
     const [tab, setTab] = useState("income");
     const [chartMetric, setChartMetric] = useState("revenue");
 
-    // KLUCZOWE: useQuery musi otrzymywać funkcję, która wywołuje fetchEdgar z tickerem.
-    const { data: rows = [], isLoading, isError } = useQuery<FinancialRow[]>({
-        queryKey: ["edgar", ticker],
-        queryFn: () => fetchEdgar(ticker), // Upewnij się, że ticker jest tu przekazywany
-        retry: 1, // Nie ponawiaj w nieskończoność przy błędzie 500
+    const { data: rows = [], isLoading: loading } = useQuery({
+        queryKey: ["financials", ticker],
+        queryFn: () => fetchEdgar(ticker),
     });
 
     const activeCols = TABS.find((t) => t.id === tab)?.cols ?? [];
-
-    const chartData = useMemo(() =>
-        rows.map((r) => ({
-            date: r.date?.slice(0, 7),
-            value: r[chartMetric] as number | null,
-        })), [rows, chartMetric]);
+    const chartData = rows.map((r) => ({
+        date: r.date?.slice(0, 7),
+        value: r[chartMetric] as number | null,
+    }));
 
     return (
         <div className="p-6">
             <h1 className="text-2xl font-bold text-white mb-1">Raporty Finansowe</h1>
             <p className="text-slate-400 text-sm mb-4">Dane kwartalne z EDGAR (bez standaryzacji)</p>
 
+            {/* Ticker selector */}
             <div className="flex gap-2 mb-4">
                 {TICKERS.map((t) => (
                     <button
@@ -93,13 +87,16 @@ export default function Financials() {
                 ))}
             </div>
 
+            {/* Tab selector */}
             <div className="flex gap-1 mb-4 border-b border-slate-700">
                 {TABS.map((t) => (
                     <button
                         key={t.id}
                         onClick={() => { setTab(t.id); setChartMetric(t.cols[0].key); }}
                         className={`px-4 py-2 text-sm font-medium transition-colors ${
-                            tab === t.id ? "border-b-2 border-blue-500 text-blue-400" : "text-slate-400 hover:text-slate-200"
+                            tab === t.id
+                                ? "border-b-2 border-blue-500 text-blue-400"
+                                : "text-slate-400 hover:text-slate-200"
                         }`}
                     >
                         {t.label}
@@ -107,14 +104,13 @@ export default function Financials() {
                 ))}
             </div>
 
-            {isLoading ? (
-                <div className="flex items-center justify-center h-64 text-slate-400">Ładowanie...</div>
-            ) : isError ? (
-                <div className="flex items-center justify-center h-64 text-red-400">Błąd serwera (500) przy pobieraniu danych dla {ticker}</div>
+            {loading ? (
+                <div className="flex items-center justify-center h-40 text-slate-400">Ładowanie...</div>
             ) : (
                 <>
+                    {/* Bar chart */}
                     <div className="bg-slate-800 rounded-xl p-4 mb-4">
-                        <div className="flex items-center gap-2 mb-3">
+                        <div className="flex items-center gap-2 mb-3 flex-wrap">
                             <span className="text-slate-400 text-sm">Metryka:</span>
                             <select
                                 value={chartMetric}
@@ -129,8 +125,12 @@ export default function Financials() {
                         <ResponsiveContainer width="100%" height={260}>
                             <BarChart data={chartData}>
                                 <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
-                                <XAxis dataKey="date" tick={{ fill: "#94a3b8", fontSize: 10 }} />
-                                <YAxis tick={{ fill: "#94a3b8", fontSize: 10 }} tickFormatter={fmt} width={70} />
+                                <XAxis dataKey="date" tick={{ fill: "#94a3b8", fontSize: 10 }} interval="preserveStartEnd" />
+                                <YAxis
+                                    tick={{ fill: "#94a3b8", fontSize: 10 }}
+                                    tickFormatter={(v) => fmt(v)}
+                                    width={70}
+                                />
                                 <Tooltip
                                     contentStyle={{ background: "#1e293b", border: "1px solid #334155", borderRadius: 8 }}
                                     formatter={(v) => [fmt(Number(v))]}
@@ -140,22 +140,27 @@ export default function Financials() {
                         </ResponsiveContainer>
                     </div>
 
-                    <div className="bg-slate-800 rounded-xl overflow-auto max-h-[400px]">
+                    {/* Table */}
+                    <div className="bg-slate-800 rounded-xl overflow-auto">
                         <table className="w-full text-sm">
                             <thead>
-                            <tr className="border-b border-slate-700 sticky top-0 bg-slate-800">
-                                <th className="text-left px-4 py-2 text-slate-400">Quarter</th>
+                            <tr className="border-b border-slate-700">
+                                <th className="text-left px-4 py-2 text-slate-400 font-medium sticky left-0 bg-slate-800">Quarter</th>
                                 {activeCols.map((c) => (
-                                    <th key={c.key} className="text-right px-4 py-2 text-slate-400">{c.label}</th>
+                                    <th key={c.key} className="text-right px-4 py-2 text-slate-400 font-medium whitespace-nowrap">
+                                        {c.label}
+                                    </th>
                                 ))}
                             </tr>
                             </thead>
                             <tbody>
                             {[...rows].reverse().map((r) => (
-                                <tr key={r.date} className="border-b border-slate-700/50 hover:bg-slate-700/30">
-                                    <td className="px-4 py-2 text-slate-300 font-mono">{r.date?.slice(0, 10)}</td>
+                                <tr key={r.date} className="border-b border-slate-700/50 hover:bg-slate-700/30 transition-colors">
+                                    <td className="px-4 py-2 text-slate-300 font-mono sticky left-0 bg-slate-800">{r.date?.slice(0, 10)}</td>
                                     {activeCols.map((c) => (
-                                        <td key={c.key} className="px-4 py-2 text-right font-mono text-slate-200">
+                                        <td key={c.key} className={`px-4 py-2 text-right font-mono tabular-nums ${
+                                            (r[c.key] as number) < 0 ? "text-red-400" : "text-slate-200"
+                                        }`}>
                                             {fmt(r[c.key] as number | null)}
                                         </td>
                                     ))}

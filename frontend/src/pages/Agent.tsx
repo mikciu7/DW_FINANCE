@@ -1,66 +1,96 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { fetchPrediction } from "../api/client"; // Używamy Twoich istniejących funkcji z client.ts
-import { BrainCircuit } from "lucide-react";
 
-const TICKERS = ["AAPL", "AMZN", "GOOG", "META", "MSFT"];
+const AVAILABLE_TICKERS = [
+    "AAPL","AMZN","GOOGL","META","MSFT",
+    "NVDA","TSLA","JPM","V","GS",
+    "GIS","MCD","CVX","XOM","LLY"
+];
 
 export default function Agent() {
-    const [ticker, setTicker] = useState("AAPL");
+    const [tab, setTab] = useState<"geo" | "stocks">("geo");
+    const [selectedTickers, setSelectedTickers] = useState<string[]>(["AAPL"]);
 
-    // CACHE: Zapytanie o dane agenta/modelu
-    const { data: prediction, isFetching, refetch } = useQuery({
-        queryKey: ["agentPrediction", ticker],
-        queryFn: () => fetchPrediction(ticker),
-        enabled: false, // Odpalamy tylko na żądanie (przycisk)
-        staleTime: 1000 * 60 * 10, // 10 minut w pamięci
+    const { data: result, isFetching: loading, refetch, error } = useQuery({
+        queryKey: ["agent", tab, selectedTickers],
+        queryFn: async () => {
+            const url = tab === "geo"
+                ? "/api/agent/geopolitics"
+                : `/api/agent/stocks?${selectedTickers.map(t => `tickers=${t}`).join("&")}`;
+            const r = await fetch(url);
+            const json = await r.json();
+            return json.data as string;
+        },
+        enabled: false, // Uruchamiamy tylko ręcznie przez refetch()
+        staleTime: 1000 * 60 * 15, // Cache agenta na 15 min
     });
 
+    const toggleTicker = (t: string) => {
+        setSelectedTickers(prev =>
+            prev.includes(t)
+                ? prev.filter(x => x !== t)
+                : prev.length < 10
+                    ? [...prev, t]
+                    : prev
+        );
+    };
+
     return (
-        <div className="p-6">
-            <h1 className="text-2xl font-bold text-white mb-1 flex items-center gap-2">
-                <BrainCircuit className="text-blue-400" /> Agent Makro
-            </h1>
-            <p className="text-slate-400 text-sm mb-6">Analiza korelacji i raporty geopolityczne</p>
+        <div className="p-6 max-w-4xl mx-auto">
+            <h1 className="text-2xl font-bold text-blue-400 mb-6">Agent Makro</h1>
 
-            <div className="bg-slate-800 rounded-xl p-5 mb-6">
-                <div className="flex gap-2 mb-4">
-                    {TICKERS.map((t) => (
-                        <button
-                            key={t}
-                            onClick={() => setTicker(t)}
-                            className={`px-4 py-1.5 rounded text-sm font-medium transition-all ${
-                                ticker === t ? "bg-blue-600 text-white" : "bg-slate-700 text-slate-300 hover:bg-slate-600"
-                            }`}
-                        >
-                            {t}
-                        </button>
-                    ))}
-                </div>
-
-                <button
-                    onClick={() => refetch()}
-                    disabled={isFetching}
-                    className="w-full py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-lg font-medium transition-colors"
-                >
-                    {isFetching ? "Generowanie..." : `Generuj raport dla ${ticker}`}
-                </button>
+            <div className="flex gap-2 mb-6">
+                {(["geo", "stocks"] as const).map(t => (
+                    <button
+                        key={t}
+                        onClick={() => { setTab(t); }}
+                        className={`px-4 py-2 rounded text-sm font-medium transition-colors ${
+                            tab === t ? "bg-blue-600 text-white" : "bg-slate-700 text-slate-300 hover:bg-slate-600"
+                        }`}
+                    >
+                        {t === "geo" ? "🌍 Geopolityka" : "📈 Akcje"}
+                    </button>
+                ))}
             </div>
 
-            {/* Tutaj Twój oryginalny widok raportu / danych geopolitycznych */}
-            {prediction && (
-                <div className={`bg-slate-800 rounded-xl p-6 transition-opacity ${isFetching ? 'opacity-50' : 'opacity-100'}`}>
-                    <h2 className="text-xl font-bold text-white mb-4 italic">Raport Geopolityczny i Rynkowy</h2>
-                    <div className="text-slate-300 space-y-4">
-                        <p>Kierunek: <span className={prediction.direction === 'UP' ? 'text-emerald-400' : 'text-red-400 font-bold'}>
-                            {prediction.direction}
-                        </span></p>
-                        <p>Przewidywany zwrot: {(prediction.predicted_return_3m * 100).toFixed(2)}%</p>
-                        {/* Wstaw tutaj ponownie swój kod odpowiedzialny za
-                           wyświetlanie opcji raportu geopolitycznego,
-                           który miałeś wcześniej.
-                        */}
+            {tab === "stocks" && (
+                <div className="mb-6">
+                    <p className="text-slate-400 text-sm mb-2">
+                        Wybierz max 10 spółek ({selectedTickers.length}/10):
+                    </p>
+                    <div className="flex flex-wrap gap-2">
+                        {AVAILABLE_TICKERS.map(t => (
+                            <button
+                                key={t}
+                                onClick={() => toggleTicker(t)}
+                                className={`px-3 py-1 rounded text-xs font-mono transition-colors ${
+                                    selectedTickers.includes(t) ? "bg-blue-600 text-white" : "bg-slate-700 text-slate-300 hover:bg-slate-600"
+                                }`}
+                            >
+                                {t}
+                            </button>
+                        ))}
                     </div>
+                </div>
+            )}
+
+            <button
+                onClick={() => refetch()}
+                disabled={loading || (tab === "stocks" && selectedTickers.length === 0)}
+                className="mb-6 px-6 py-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-40 rounded font-medium text-sm transition-colors"
+            >
+                {loading ? "⏳ Analizuję, poczekaj..." : "▶ Uruchom analizę"}
+            </button>
+
+            {loading && (
+                <div className="text-slate-400 text-sm animate-pulse">
+                    Agent zbiera dane i analizuje... może potrwać 20–40 sekund.
+                </div>
+            )}
+            {error && <div className="text-red-400 text-sm">Błąd połączenia z backendem.</div>}
+            {result && !loading && (
+                <div className="bg-slate-800 border border-slate-700 rounded-lg p-5 text-sm text-slate-200 whitespace-pre-wrap leading-relaxed">
+                    {result}
                 </div>
             )}
         </div>

@@ -1,7 +1,7 @@
 import { useState, useMemo } from "react";
-import { useQuery } from "@tanstack/react-query"; // Import hooka do cachowania
 import { fetchPrices } from "../api/client";
 import type { PriceRow } from "../api/client";
+import { useQuery } from "@tanstack/react-query";
 import {
     LineChart, Line, XAxis, YAxis, Tooltip, Legend, ResponsiveContainer, CartesianGrid,
 } from "recharts";
@@ -26,20 +26,20 @@ type GroupedData = { date: string; [ticker: string]: number | string };
 export default function Overview() {
     const [range, setRange] = useState(1825);
 
-    //  useQuery do cachowania
-    const { data: rows = [], isLoading } = useQuery<PriceRow[]>({
+    // NAPRAWA TS2769: Owijamy fetchPrices w funkcję anonimową.
+    // Dzięki temu React Query nie przekazuje swojego obiektu 'context' bezpośrednio do fetchPrices.
+    const { data: rows = [], isLoading: loading } = useQuery<PriceRow[]>({
         queryKey: ["prices"],
-        queryFn: () => fetchPrices(), // ZAMIANA z: queryFn: fetchPrices
+        queryFn: () => fetchPrices(),
     });
 
-    // Logika transformacji danych pozostaje w useMemo dla wydajności
     const chartData = useMemo<GroupedData[]>(() => {
-        if (!rows.length) return [];
-
         const cutoff = new Date();
         cutoff.setDate(cutoff.getDate() - range);
 
         const byDate: Record<string, GroupedData> = {};
+
+        // rows jest teraz poprawnie rozpoznawane jako PriceRow[]
         for (const r of rows) {
             if (new Date(r.date) < cutoff) continue;
             if (!byDate[r.date]) byDate[r.date] = { date: r.date };
@@ -48,17 +48,14 @@ export default function Overview() {
         return Object.values(byDate).sort((a, b) => (a.date < b.date ? -1 : 1));
     }, [rows, range]);
 
-    // Wyciąganie unikalnych tickerów z pobranych danych
-    const tickers = useMemo(() =>
-            [...new Set(rows.map((r) => r.ticker))],
-        [rows]);
+    // tickers automatycznie otrzymuje typ string[]
+    const tickers = [...new Set(rows.map((r) => r.ticker))];
 
     return (
         <div className="p-6">
             <h1 className="text-2xl font-bold text-white mb-1">Ceny akcji</h1>
             <p className="text-slate-400 text-sm mb-4">Historyczne kursy zamknięcia (daily)</p>
 
-            {/* Selektor zakresu czasowego */}
             <div className="flex gap-2 mb-6">
                 {RANGES.map((r) => (
                     <button
@@ -75,44 +72,31 @@ export default function Overview() {
                 ))}
             </div>
 
-            {isLoading ? (
-                // Wyświetlane tylko przy pierwszym ładowaniu (gdy cache jest pusty)
-                <div className="flex items-center justify-center h-64 text-slate-400">
-                    <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-blue-500 mr-3"></div>
-                    Pobieranie danych...
-                </div>
+            {loading ? (
+                <div className="flex items-center justify-center h-64 text-slate-400">Ładowanie...</div>
             ) : (
-                <div className="bg-slate-800 rounded-xl p-4 border border-slate-700/50 shadow-xl">
+                <div className="bg-slate-800 rounded-xl p-4">
                     <ResponsiveContainer width="100%" height={420}>
                         <LineChart data={chartData}>
-                            <CartesianGrid strokeDasharray="3 3" stroke="#334155" vertical={false} />
+                            <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
                             <XAxis
                                 dataKey="date"
                                 tick={{ fill: "#94a3b8", fontSize: 11 }}
-                                tickFormatter={(v) => v.slice(0, 7)}
+                                // v: any zastępujemy v: string dla bezpieczeństwa
+                                tickFormatter={(v: string) => v?.slice(0, 7)}
                                 interval="preserveStartEnd"
-                                minTickGap={50}
                             />
                             <YAxis
                                 tick={{ fill: "#94a3b8", fontSize: 11 }}
                                 tickFormatter={(v) => `$${v}`}
                                 width={60}
-                                domain={['auto', 'auto']}
                             />
                             <Tooltip
-                                contentStyle={{
-                                    background: "#1e293b",
-                                    border: "1px solid #334155",
-                                    borderRadius: 8,
-                                    boxShadow: "0 10px 15px -3px rgba(0, 0, 0, 0.5)"
-                                }}
-                                labelStyle={{ color: "#cbd5e1", fontWeight: 'bold', marginBottom: '4px' }}
+                                contentStyle={{ background: "#1e293b", border: "1px solid #334155", borderRadius: 8 }}
+                                labelStyle={{ color: "#cbd5e1" }}
                                 formatter={(v) => [`$${Number(v).toFixed(2)}`]}
                             />
-                            <Legend
-                                wrapperStyle={{ paddingTop: "20px", color: "#94a3b8" }}
-                                iconType="circle"
-                            />
+                            <Legend wrapperStyle={{ color: "#94a3b8" }} />
                             {tickers.map((t) => (
                                 <Line
                                     key={t}
@@ -120,9 +104,7 @@ export default function Overview() {
                                     dataKey={t}
                                     stroke={COLORS[t] ?? "#94a3b8"}
                                     dot={false}
-                                    strokeWidth={2}
-                                    activeDot={{ r: 4, strokeWidth: 0 }}
-                                    animationDuration={1000}
+                                    strokeWidth={1.5}
                                 />
                             ))}
                         </LineChart>
