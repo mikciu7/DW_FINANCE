@@ -130,6 +130,16 @@ const MACRO_METADATA: Record<string, { label: string; desc: string; interval: st
     },
 };
 
+const useRightAxis = (symbol: string) => {
+    // Te metryki mają zazwyczaj wartości < 200 (procenty, stopy, ceny ropy)
+    const smallValueMetrics = [
+        'dcoilwtico', 'unrate', 'fedfunds', 'dff', 'dgs1',
+        'vixcls', 'bamlc0a4cbbb', 'bamlh0a0hym2',
+        'dexuseu', 'dexusuk', 'dexchus', 'cscicp03usm665s', 'umcsent'
+    ];
+    return smallValueMetrics.includes(symbol);
+};
+
 const Macro = () => {
     const [fileDates, setFileDates] = useState<string[]>([]);
     const [selectedFileDate, setSelectedFileDate] = useState<string>('');
@@ -326,30 +336,57 @@ const Macro = () => {
                             <BarChart3 className="text-indigo-400" /> Historical Performance
                         </h3>
                     </div>
-                    <ResponsiveContainer width="100%" height="100%">
-                        <LineChart data={chartData}>
-                            <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" vertical={false} />
-                            <XAxis dataKey="date" stroke="#475569" tick={{fontSize: 10}} minTickGap={80} />
-                            <YAxis stroke="#475569" tick={{fontSize: 10}} domain={['auto', 'auto']} />
-                            <Tooltip
-                                contentStyle={{ backgroundColor: '#0f172a', border: '1px solid #334155', borderRadius: '12px' }}
-                                itemStyle={{ fontSize: '12px' }}
-                            />
-                            <Legend iconType="circle" wrapperStyle={{ paddingTop: '20px' }} />
-                            {selectedMetrics.map((m, idx) => (
-                                <Line
-                                    key={m}
-                                    type="monotone"
-                                    dataKey={m}
-                                    stroke={COLORS[idx]}
-                                    strokeWidth={2}
-                                    dot={false}
-                                    name={MACRO_METADATA[m]?.label}
-                                    animationDuration={500}
+                    <div className="flex-1 min-h-0 w-full">
+                        <ResponsiveContainer width="100%" height="100%">
+                            <LineChart data={chartData} margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
+                                <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" vertical={false} />
+                                <XAxis
+                                    dataKey="date"
+                                    stroke="#475569"
+                                    tick={{fontSize: 10}}
+                                    minTickGap={80}
                                 />
-                            ))}
-                        </LineChart>
-                    </ResponsiveContainer>
+
+                                {/* LEWA OŚ Y: Dla metryk "dużych" (GDP, Debt, Assets) */}
+                                <YAxis
+                                    yAxisId="left"
+                                    stroke="#475569"
+                                    tick={{fontSize: 10}}
+                                    domain={['auto', 'auto']}
+                                />
+
+                                {/* PRAWA OŚ Y: Dla metryk "małych" (Oil, %, Sentiment, Rates) */}
+                                <YAxis
+                                    yAxisId="right"
+                                    orientation="right"
+                                    stroke="#6366f1"
+                                    tick={{fontSize: 10}}
+                                    domain={['auto', 'auto']}
+                                />
+
+                                <Tooltip
+                                    contentStyle={{ backgroundColor: '#0f172a', border: '1px solid #334155', borderRadius: '12px' }}
+                                    itemStyle={{ fontSize: '12px' }}
+                                />
+                                <Legend iconType="circle" wrapperStyle={{ paddingTop: '20px' }} />
+
+                                {selectedMetrics.map((m, idx) => (
+                                    <Line
+                                        key={m}
+                                        yAxisId={useRightAxis(m) ? "right" : "left"} // Dynamiczna oś
+                                        type="monotone"
+                                        dataKey={m}
+                                        stroke={COLORS[idx]}
+                                        strokeWidth={2}
+                                        dot={false}
+                                        connectNulls={true} // KLUCZOWE: Naprawia luki (dziury) w wykresie
+                                        name={MACRO_METADATA[m]?.label}
+                                        animationDuration={1000}
+                                    />
+                                ))}
+                            </LineChart>
+                        </ResponsiveContainer>
+                    </div>
                 </div>
                 {/* Dynamiczna Sekcja Wiedzy (Drugie Spojrzenie) [cite: 559] */}
                 {selectedMetrics.length > 0 && (
