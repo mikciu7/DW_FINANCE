@@ -330,62 +330,89 @@ const Macro = () => {
                 </div>
 
                 {/* Wykres - Główny punkt uwagi [cite: 559] */}
-                <div className="bg-slate-900/50 border border-slate-800 rounded-3xl p-6 backdrop-blur-md h-[650px] mb-8 shadow-2xl">
+                <div className="bg-slate-900/50 border border-slate-800 rounded-3xl p-6 backdrop-blur-md shadow-2xl flex flex-col mb-8" style={{ height: '650px', minHeight: '650px' }}>
                     <div className="flex justify-between items-center mb-6">
                         <h3 className="font-bold flex items-center gap-2">
                             <BarChart3 className="text-indigo-400" /> Historical Performance
                         </h3>
                     </div>
-                    <div className="flex-1 min-h-0 w-full">
-                        <ResponsiveContainer width="100%" height="100%">
-                            <LineChart data={chartData} margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
-                                <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" vertical={false} />
-                                <XAxis
-                                    dataKey="date"
-                                    stroke="#475569"
-                                    tick={{fontSize: 10}}
-                                    minTickGap={80}
-                                />
 
-                                {/* LEWA OŚ Y: Dla metryk "dużych" (GDP, Debt, Assets) */}
-                                <YAxis
-                                    yAxisId="left"
-                                    stroke="#475569"
-                                    tick={{fontSize: 10}}
-                                    domain={['auto', 'auto']}
-                                />
-
-                                {/* PRAWA OŚ Y: Dla metryk "małych" (Oil, %, Sentiment, Rates) */}
-                                <YAxis
-                                    yAxisId="right"
-                                    orientation="right"
-                                    stroke="#6366f1"
-                                    tick={{fontSize: 10}}
-                                    domain={['auto', 'auto']}
-                                />
-
-                                <Tooltip
-                                    contentStyle={{ backgroundColor: '#0f172a', border: '1px solid #334155', borderRadius: '12px' }}
-                                    itemStyle={{ fontSize: '12px' }}
-                                />
-                                <Legend iconType="circle" wrapperStyle={{ paddingTop: '20px' }} />
-
-                                {selectedMetrics.map((m, idx) => (
-                                    <Line
-                                        key={m}
-                                        yAxisId={useRightAxis(m) ? "right" : "left"} // Dynamiczna oś
-                                        type="monotone"
-                                        dataKey={m}
-                                        stroke={COLORS[idx]}
-                                        strokeWidth={2}
-                                        dot={false}
-                                        connectNulls={true} // KLUCZOWE: Naprawia luki (dziury) w wykresie
-                                        name={MACRO_METADATA[m]?.label}
-                                        animationDuration={1000}
+                    {/* Kontener z ustalonymi wymiarami dla ResponsiveContainer */}
+                    <div className="w-full h-full min-h-0">
+                        {chartData && chartData.length > 0 ? (
+                            <ResponsiveContainer width="100%" height="100%">
+                                <LineChart
+                                    data={chartData}
+                                    margin={{ top: 10, right: 30, left: 10, bottom: 10 }}
+                                >
+                                    <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" vertical={false} />
+                                    <XAxis
+                                        dataKey="date"
+                                        stroke="#475569"
+                                        tick={{fontSize: 10}}
+                                        minTickGap={80}
+                                        axisLine={{ stroke: '#334155' }}
                                     />
-                                ))}
-                            </LineChart>
-                        </ResponsiveContainer>
+
+                                    {/* LEWA OŚ Y: Duże wartości */}
+                                    <YAxis
+                                        yAxisId="left"
+                                        stroke="#475569"
+                                        tick={{fontSize: 10}}
+                                        domain={['auto', 'auto']}
+                                        axisLine={false}
+                                        tickLine={false}
+                                    />
+
+                                    {/* PRAWA OŚ Y: Małe wartości (%, Oil) */}
+                                    <YAxis
+                                        yAxisId="right"
+                                        orientation="right"
+                                        stroke="#6366f1"
+                                        tick={{fontSize: 10}}
+                                        domain={['auto', 'auto']}
+                                        axisLine={false}
+                                        tickLine={false}
+                                    />
+
+                                    <Tooltip
+                                        contentStyle={{
+                                            backgroundColor: '#0f172a',
+                                            border: '1px solid #334155',
+                                            borderRadius: '12px',
+                                            boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.5)'
+                                        }}
+                                        itemStyle={{ fontSize: '12px' }}
+                                        cursor={{ stroke: '#334155', strokeWidth: 1 }}
+                                    />
+                                    <Legend
+                                        verticalAlign="top"
+                                        height={36}
+                                        iconType="circle"
+                                    />
+
+                                    {selectedMetrics.map((m, idx) => (
+                                        <Line
+                                            key={m}
+                                            yAxisId={useRightAxis(m) ? "right" : "left"}
+                                            type="monotone"
+                                            dataKey={m}
+                                            stroke={COLORS[idx % COLORS.length]}
+                                            strokeWidth={2.5}
+                                            dot={false}
+                                            activeDot={{ r: 4, strokeWidth: 0 }}
+                                            connectNulls={true} // Naprawia dziury w danych między interwałami
+                                            name={MACRO_METADATA[m]?.label}
+                                            animationDuration={1000}
+                                        />
+                                    ))}
+                                </LineChart>
+                            </ResponsiveContainer>
+                        ) : (
+                            <div className="flex items-center justify-center h-full text-slate-500 italic">
+                                Brak danych dla wybranego zakresu lub metryk...
+                            </div>
+                        )}
                     </div>
                 </div>
                 {/* Dynamiczna Sekcja Wiedzy (Drugie Spojrzenie) [cite: 559] */}
