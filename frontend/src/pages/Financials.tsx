@@ -1,5 +1,5 @@
 import { useState, useMemo } from "react";
-import { useQuery } from "@tanstack/react-query"; // Importujemy useQuery
+import { useQuery } from "@tanstack/react-query";
 import { fetchEdgar } from "../api/client";
 import type { FinancialRow } from "../api/client";
 import {
@@ -59,16 +59,15 @@ export default function Financials() {
     const [tab, setTab] = useState("income");
     const [chartMetric, setChartMetric] = useState("revenue");
 
-    // Zastępujemy useEffect i ręczne zarządzanie loadingiem przez useQuery
-    const { data: rows = [], isLoading } = useQuery<FinancialRow[]>({
-        queryKey: ["edgar", ticker], // Klucz zawiera ticker, więc dane AAPL i MSFT są cachowane oddzielnie
-        queryFn: () => fetchEdgar(ticker),
-        // Dzięki globalnym ustawieniom w main.tsx, dane będą "świeże" przez 5 minut
+    // KLUCZOWE: useQuery musi otrzymywać funkcję, która wywołuje fetchEdgar z tickerem.
+    const { data: rows = [], isLoading, isError } = useQuery<FinancialRow[]>({
+        queryKey: ["edgar", ticker],
+        queryFn: () => fetchEdgar(ticker), // Upewnij się, że ticker jest tu przekazywany
+        retry: 1, // Nie ponawiaj w nieskończoność przy błędzie 500
     });
 
     const activeCols = TABS.find((t) => t.id === tab)?.cols ?? [];
 
-    // Optymalizujemy mapowanie danych do wykresu za pomocą useMemo
     const chartData = useMemo(() =>
         rows.map((r) => ({
             date: r.date?.slice(0, 7),
@@ -80,14 +79,13 @@ export default function Financials() {
             <h1 className="text-2xl font-bold text-white mb-1">Raporty Finansowe</h1>
             <p className="text-slate-400 text-sm mb-4">Dane kwartalne z EDGAR (bez standaryzacji)</p>
 
-            {/* Ticker selector */}
             <div className="flex gap-2 mb-4">
                 {TICKERS.map((t) => (
                     <button
                         key={t}
                         onClick={() => setTicker(t)}
                         className={`px-4 py-1.5 rounded text-sm font-medium transition-colors ${
-                            ticker === t ? "bg-blue-600 text-white shadow-lg shadow-blue-900/20" : "bg-slate-700 text-slate-300 hover:bg-slate-600"
+                            ticker === t ? "bg-blue-600 text-white" : "bg-slate-700 text-slate-300 hover:bg-slate-600"
                         }`}
                     >
                         {t}
@@ -95,16 +93,13 @@ export default function Financials() {
                 ))}
             </div>
 
-            {/* Tab selector */}
             <div className="flex gap-1 mb-4 border-b border-slate-700">
                 {TABS.map((t) => (
                     <button
                         key={t.id}
                         onClick={() => { setTab(t.id); setChartMetric(t.cols[0].key); }}
                         className={`px-4 py-2 text-sm font-medium transition-colors ${
-                            tab === t.id
-                                ? "border-b-2 border-blue-500 text-blue-400"
-                                : "text-slate-400 hover:text-slate-200"
+                            tab === t.id ? "border-b-2 border-blue-500 text-blue-400" : "text-slate-400 hover:text-slate-200"
                         }`}
                     >
                         {t.label}
@@ -113,20 +108,18 @@ export default function Financials() {
             </div>
 
             {isLoading ? (
-                <div className="flex flex-col items-center justify-center h-64 text-slate-400 gap-3">
-                    <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-blue-500"></div>
-                    <span>Pobieranie raportów {ticker}...</span>
-                </div>
+                <div className="flex items-center justify-center h-64 text-slate-400">Ładowanie...</div>
+            ) : isError ? (
+                <div className="flex items-center justify-center h-64 text-red-400">Błąd serwera (500) przy pobieraniu danych dla {ticker}</div>
             ) : (
                 <>
-                    {/* Bar chart */}
-                    <div className="bg-slate-800 border border-slate-700/50 rounded-xl p-4 mb-4 shadow-xl">
-                        <div className="flex items-center gap-2 mb-3 flex-wrap">
+                    <div className="bg-slate-800 rounded-xl p-4 mb-4">
+                        <div className="flex items-center gap-2 mb-3">
                             <span className="text-slate-400 text-sm">Metryka:</span>
                             <select
                                 value={chartMetric}
                                 onChange={(e) => setChartMetric(e.target.value)}
-                                className="bg-slate-700 text-slate-200 text-sm rounded px-2 py-1 border border-slate-600 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                                className="bg-slate-700 text-slate-200 text-sm rounded px-2 py-1 border border-slate-600"
                             >
                                 {activeCols.map((c) => (
                                     <option key={c.key} value={c.key}>{c.label}</option>
@@ -135,52 +128,41 @@ export default function Financials() {
                         </div>
                         <ResponsiveContainer width="100%" height={260}>
                             <BarChart data={chartData}>
-                                <CartesianGrid strokeDasharray="3 3" stroke="#334155" vertical={false} />
-                                <XAxis dataKey="date" tick={{ fill: "#94a3b8", fontSize: 10 }} interval="preserveStartEnd" />
-                                <YAxis
-                                    tick={{ fill: "#94a3b8", fontSize: 10 }}
-                                    tickFormatter={(v) => fmt(v)}
-                                    width={70}
-                                />
+                                <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
+                                <XAxis dataKey="date" tick={{ fill: "#94a3b8", fontSize: 10 }} />
+                                <YAxis tick={{ fill: "#94a3b8", fontSize: 10 }} tickFormatter={fmt} width={70} />
                                 <Tooltip
-                                    contentStyle={{ background: "#1e293b", border: "1px solid #334155", borderRadius: 8, boxShadow: "0 10px 15px -3px rgba(0,0,0,0.4)" }}
+                                    contentStyle={{ background: "#1e293b", border: "1px solid #334155", borderRadius: 8 }}
                                     formatter={(v) => [fmt(Number(v))]}
                                 />
-                                <Bar dataKey="value" fill="#3b82f6" radius={[3, 3, 0, 0]} animationDuration={1000} />
+                                <Bar dataKey="value" fill="#3b82f6" radius={[3, 3, 0, 0]} />
                             </BarChart>
                         </ResponsiveContainer>
                     </div>
 
-                    {/* Table */}
-                    <div className="bg-slate-800 border border-slate-700/50 rounded-xl overflow-hidden shadow-xl">
-                        <div className="overflow-auto max-h-[400px] custom-scrollbar">
-                            <table className="w-full text-sm">
-                                <thead className="sticky top-0 z-10">
-                                <tr className="bg-slate-900 border-b border-slate-700">
-                                    <th className="text-left px-4 py-3 text-slate-400 font-semibold sticky left-0 bg-slate-900">Quarter</th>
+                    <div className="bg-slate-800 rounded-xl overflow-auto max-h-[400px]">
+                        <table className="w-full text-sm">
+                            <thead>
+                            <tr className="border-b border-slate-700 sticky top-0 bg-slate-800">
+                                <th className="text-left px-4 py-2 text-slate-400">Quarter</th>
+                                {activeCols.map((c) => (
+                                    <th key={c.key} className="text-right px-4 py-2 text-slate-400">{c.label}</th>
+                                ))}
+                            </tr>
+                            </thead>
+                            <tbody>
+                            {[...rows].reverse().map((r) => (
+                                <tr key={r.date} className="border-b border-slate-700/50 hover:bg-slate-700/30">
+                                    <td className="px-4 py-2 text-slate-300 font-mono">{r.date?.slice(0, 10)}</td>
                                     {activeCols.map((c) => (
-                                        <th key={c.key} className="text-right px-4 py-3 text-slate-400 font-semibold whitespace-nowrap">
-                                            {c.label}
-                                        </th>
+                                        <td key={c.key} className="px-4 py-2 text-right font-mono text-slate-200">
+                                            {fmt(r[c.key] as number | null)}
+                                        </td>
                                     ))}
                                 </tr>
-                                </thead>
-                                <tbody className="divide-y divide-slate-700/50">
-                                {[...rows].reverse().map((r) => (
-                                    <tr key={r.date} className="hover:bg-slate-700/30 transition-colors group">
-                                        <td className="px-4 py-2 text-slate-300 font-mono sticky left-0 bg-slate-800 group-hover:bg-slate-700/50">{r.date?.slice(0, 10)}</td>
-                                        {activeCols.map((c) => (
-                                            <td key={c.key} className={`px-4 py-2 text-right font-mono tabular-nums ${
-                                                (r[c.key] as number) < 0 ? "text-red-400" : "text-slate-200"
-                                            }`}>
-                                                {fmt(r[c.key] as number | null)}
-                                            </td>
-                                        ))}
-                                    </tr>
-                                ))}
-                                </tbody>
-                            </table>
-                        </div>
+                            ))}
+                            </tbody>
+                        </table>
                     </div>
                 </>
             )}
