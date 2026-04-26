@@ -20,9 +20,14 @@ RSS_GEOPOLITYKA = [
 ]
 
 def _get_client():
+    validation_key = os.getenv("OPENROUTER_API_KEY", "")
     return OpenAI(
         base_url="https://openrouter.ai/api/v1",
-        api_key=os.getenv("OPENROUTER_API_KEY", "")
+        api_key=validation_key,
+        default_headers={
+            "HTTP-Referer": "http://13.63.209.239/", # domena/surwoy adrees ip do naglowka zeby sprobowac zrobic fix zapytan dla modelu
+            "X-Title": "NeoEye"
+        }
     )
 
 async def _pobierz_tekst(url: str) -> str:
