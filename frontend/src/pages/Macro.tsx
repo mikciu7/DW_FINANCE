@@ -138,6 +138,11 @@ const Macro = () => {
     const [selectedMetrics, setSelectedMetrics] = useState<string[]>(['gdpc1']);
     const [filterType, setFilterType] = useState<'All' | 'Daily' | 'Monthly' | 'Quarterly'>('All');
 
+    // reakcja na klikniecie przycisku
+    const handleFilterToggle = (t: 'Daily' | 'Monthly' | 'Quarterly') => {
+        setFilterType(prev => prev === t ? 'All' : t);
+    };
+
     // operacja slice and dice pola dateeRange oraz setDateRange typu useState String oraz String
     const [dateRange, setDateRange] = useState<{ start: string; end: string }>({ start: '', end: '' });
 
@@ -196,9 +201,9 @@ const Macro = () => {
     }, [data, selectedMetrics, dateRange]);
 
     return (
-        <div className="flex h-[calc(100vh-64px)] bg-[#0a0a0a] text-slate-100 overflow-hidden">
+        <div className="flex h-[calc(100vh-56px)] w-full bg-[#0a0a0a] text-slate-100 overflow-hidden">
             {/* LEWY PANEL: Nawigacja i Filtry (Reguła F) */}
-            <aside className="w-80 border-r border-slate-800 bg-slate-900/50 p-6 flex flex-col gap-6 overflow-y-auto custom-scrollbar">
+            <aside className="w-80 flex-shrink-0 border-r border-slate-800 bg-slate-900/50 p-6 flex flex-col gap-6 overflow-y-auto custom-scrollbar">
                 <div>
                     <h2 className="text-lg font-bold flex items-center gap-2 mb-4">
                         <Filter size={18} className="text-indigo-500" /> Control Panel
@@ -216,47 +221,53 @@ const Macro = () => {
                         </select>
                     </div>
                 </div>
-                {/* NOWA SEKCJA: DATE RANGE (SLICE) */}
-                {data.length > 0 && (
-                    <div className="space-y-4">
-                        <label className="text-xs text-slate-500 uppercase font-bold tracking-wider">Time Range (Slice)</label>
-                        <div className="grid grid-cols-1 gap-2">
-                            <div className="bg-slate-800 p-2 rounded-lg">
-                                <span className="text-[10px] text-slate-500 block mb-1 uppercase">From</span>
-                                <input
-                                    type="date"
-                                    min={availableRange.min}
-                                    max={dateRange.end}
-                                    value={dateRange.start}
-                                    onChange={(e) => setDateRange(prev => ({ ...prev, start: e.target.value }))}
-                                    className="bg-transparent text-xs w-full outline-none text-indigo-300"
-                                />
+                {/* 2. NOWOCZESNY I RESPONSYWNY DATE RANGE PICKER, OPERACJA SLICE AND DICE*/}
+                <div className="space-y-4">
+                    <label className="text-xs text-slate-500 uppercase font-bold tracking-wider">Time Range (Slice)</label>
+                    <div className="flex flex-col gap-3">
+                        <div className="relative group">
+                            <div className="absolute inset-y-0 left-3 flex items-center pointer-events-none text-slate-500 group-focus-within:text-indigo-400 transition-colors">
+                                <Calendar size={14} />
                             </div>
-                            <div className="bg-slate-800 p-2 rounded-lg">
-                                <span className="text-[10px] text-slate-500 block mb-1 uppercase">To</span>
-                                <input
-                                    type="date"
-                                    min={dateRange.start}
-                                    max={availableRange.max}
-                                    value={dateRange.end}
-                                    onChange={(e) => setDateRange(prev => ({ ...prev, end: e.target.value }))}
-                                    className="bg-transparent text-xs w-full outline-none text-indigo-300"
-                                />
+                            <input
+                                type="date"
+                                min={availableRange.min}
+                                max={dateRange.end}
+                                value={dateRange.start}
+                                onChange={(e) => setDateRange(prev => ({ ...prev, start: e.target.value }))}
+                                className="w-full bg-slate-800/50 border border-slate-700 hover:border-slate-600 rounded-xl py-2 pl-10 pr-4 text-xs outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500/20 transition-all text-slate-200"
+                            />
+                        </div>
+                        <div className="relative group">
+                            <div className="absolute inset-y-0 left-3 flex items-center pointer-events-none text-slate-500 group-focus-within:text-indigo-400 transition-colors">
+                                <Calendar size={14} />
                             </div>
+                            <input
+                                type="date"
+                                min={dateRange.start}
+                                max={availableRange.max}
+                                value={dateRange.end}
+                                onChange={(e) => setDateRange(prev => ({ ...prev, end: e.target.value }))}
+                                className="w-full bg-slate-800/50 border border-slate-700 hover:border-slate-600 rounded-xl py-2 pl-10 pr-4 text-xs outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500/20 transition-all text-slate-200"
+                            />
                         </div>
                     </div>
-                )}
+                </div>
+
                 <div>
                     <div className="flex justify-between items-center mb-2">
                         <label className="text-xs text-slate-500 uppercase font-bold tracking-wider">Metrics ({selectedMetrics.length}/5)</label>
-                        <div className="flex gap-1">
+                        <div className="flex gap-1 bg-slate-800/50 p-1 rounded-lg border border-slate-700">
                             {['Daily', 'Monthly', 'Quarterly'].map(t => (
                                 <button
                                     key={t}
-                                    onClick={() => setFilterType(t as any)}
-                                    className={`text-[10px] px-2 py-0.5 rounded ${filterType === t ? 'bg-indigo-600' : 'bg-slate-800'}`}
-                                >
-                                    {t[0]}
+                                    onClick={() => handleFilterToggle(t as any)}
+                                    className={`text-[10px] px-2.5 py-1 rounded-md font-bold transition-all ${
+                                        filterType === t
+                                            ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-600/20'
+                                            : 'text-slate-500 hover:text-slate-300 hover:bg-slate-700'
+                                    }`}
+                                >{t[0]}
                                 </button>
                             ))}
                         </div>
@@ -286,14 +297,14 @@ const Macro = () => {
             </aside>
 
             {/* GŁÓWNY OBSZAR: Wykres i KPI (Reguła Z/F) */}
-            <main className="flex-1 p-8 overflow-y-auto bg-grid-pattern">
+            <main className="flex-1 min-w-0 p-6 lg:p-10 overflow-y-auto bg-grid-pattern custom-scrollbar">
                 <header className="mb-8">
-                    <h1 className="text-3xl font-bold tracking-tight">Market Intelligence Dashboard</h1>
-                    <p className="text-slate-400">Analiza porównawcza wskaźników makroekonomicznych</p>
+                    <h1 className="text-4xl font-extrabold tracking-tight">Market Intelligence Dashboard</h1>
+                    <p className="text-slate-400 text-lg">Analiza porównawcza wskaźników makroekonomicznych w czasie rzeczywistym</p>
                 </header>
 
                 {/* Szybkie Spojrzenie (KPI) - Zgodnie z modelem "Pierwsze Spojrzenie" [cite: 506] */}
-                <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-4 mb-8">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-6 mb-8">
                     {selectedMetrics.map((m, idx) => (
                         <div key={m} className="bg-slate-900 border border-slate-800 p-4 rounded-2xl shadow-sm">
                             <div className="flex items-center justify-between mb-2">
@@ -309,7 +320,7 @@ const Macro = () => {
                 </div>
 
                 {/* Wykres - Główny punkt uwagi [cite: 559] */}
-                <div className="bg-slate-900/50 border border-slate-800 rounded-3xl p-6 backdrop-blur-md h-[600px]">
+                <div className="bg-slate-900/50 border border-slate-800 rounded-3xl p-6 backdrop-blur-md h-[650px] mb-8 shadow-2xl">
                     <div className="flex justify-between items-center mb-6">
                         <h3 className="font-bold flex items-center gap-2">
                             <BarChart3 className="text-indigo-400" /> Historical Performance
@@ -342,7 +353,7 @@ const Macro = () => {
                 </div>
                 {/* Dynamiczna Sekcja Wiedzy (Drugie Spojrzenie) [cite: 559] */}
                 {selectedMetrics.length > 0 && (
-                    <div className="mt-8 space-y-6">
+                    <div className="mt-8 space-y-6 pb-12">
                         <div className="flex items-center gap-3 border-b border-slate-800 pb-4">
                             <BarChart3 className="text-indigo-500" size={24} />
                             <h2 className="text-xl font-bold">Interpretacja i Zastosowanie Rynkowe</h2>

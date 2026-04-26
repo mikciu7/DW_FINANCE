@@ -39,7 +39,7 @@ export default function Agent() {
     };
 
     return (
-        <div className="p-6 max-w-4xl mx-auto">
+        <div className="max-w-7xl mx-auto w-full p-6 lg:p-10 space-y-8">
             <h1 className="text-2xl font-bold text-blue-400 mb-6">Agent Makro</h1>
 
             {/* Zakładki */}

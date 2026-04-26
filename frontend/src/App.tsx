@@ -53,7 +53,8 @@ export default function App() {
                 </div>
             </header>
 
-            <main className="max-w-7xl mx-auto p-4">
+            {/*<main className="max-w-7xl mx-auto p-4">*/}
+            <main className="w-full">
                 {/* Suspense dla lazy components*/}
                 <Suspense fallback={<PageLoader />}>
                     {page === "overview" && <Overview />}
