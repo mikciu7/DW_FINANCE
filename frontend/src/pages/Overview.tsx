@@ -1,7 +1,6 @@
-import { useState, useMemo } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { fetchPrices } from "../api/client";
 import type { PriceRow } from "../api/client";
-import { useQuery } from "@tanstack/react-query";
 import {
     LineChart, Line, XAxis, YAxis, Tooltip, Legend, ResponsiveContainer, CartesianGrid,
 } from "recharts";
@@ -24,22 +23,21 @@ const RANGES = [
 type GroupedData = { date: string; [ticker: string]: number | string };
 
 export default function Overview() {
+    const [rows, setRows] = useState<PriceRow[]>([]);
     const [range, setRange] = useState(1825);
+    const [loading, setLoading] = useState(true);
 
-    // NAPRAWA TS2769: Owijamy fetchPrices w funkcję anonimową.
-    // Dzięki temu React Query nie przekazuje swojego obiektu 'context' bezpośrednio do fetchPrices.
-    const { data: rows = [], isLoading: loading } = useQuery<PriceRow[]>({
-        queryKey: ["prices"],
-        queryFn: () => fetchPrices(),
-    });
+    useEffect(() => {
+        fetchPrices()
+            .then(setRows)
+            .finally(() => setLoading(false));
+    }, []);
 
     const chartData = useMemo<GroupedData[]>(() => {
         const cutoff = new Date();
         cutoff.setDate(cutoff.getDate() - range);
 
         const byDate: Record<string, GroupedData> = {};
-
-        // rows jest teraz poprawnie rozpoznawane jako PriceRow[]
         for (const r of rows) {
             if (new Date(r.date) < cutoff) continue;
             if (!byDate[r.date]) byDate[r.date] = { date: r.date };
@@ -48,7 +46,6 @@ export default function Overview() {
         return Object.values(byDate).sort((a, b) => (a.date < b.date ? -1 : 1));
     }, [rows, range]);
 
-    // tickers automatycznie otrzymuje typ string[]
     const tickers = [...new Set(rows.map((r) => r.ticker))];
 
     return (
@@ -82,8 +79,7 @@ export default function Overview() {
                             <XAxis
                                 dataKey="date"
                                 tick={{ fill: "#94a3b8", fontSize: 11 }}
-                                // v: any zastępujemy v: string dla bezpieczeństwa
-                                tickFormatter={(v: string) => v?.slice(0, 7)}
+                                tickFormatter={(v) => v.slice(0, 7)}
                                 interval="preserveStartEnd"
                             />
                             <YAxis

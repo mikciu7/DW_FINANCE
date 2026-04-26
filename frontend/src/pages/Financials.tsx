@@ -1,7 +1,9 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { fetchEdgar } from "../api/client";
-import { useQuery } from "@tanstack/react-query";
-import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from "recharts";
+import type { FinancialRow } from "../api/client";
+import {
+    BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid,
+} from "recharts";
 
 const TICKERS = ["AAPL", "AMZN", "GOOG", "META", "MSFT"];
 
@@ -54,12 +56,16 @@ const fmt = (v: number | null) => {
 export default function Financials() {
     const [ticker, setTicker] = useState("AAPL");
     const [tab, setTab] = useState("income");
+    const [rows, setRows] = useState<FinancialRow[]>([]);
     const [chartMetric, setChartMetric] = useState("revenue");
+    const [loading, setLoading] = useState(true);
 
-    const { data: rows = [], isLoading: loading } = useQuery({
-        queryKey: ["financials", ticker],
-        queryFn: () => fetchEdgar(ticker),
-    });
+    useEffect(() => {
+        setLoading(true);
+        fetchEdgar(ticker)
+            .then(setRows)
+            .finally(() => setLoading(false));
+    }, [ticker]);
 
     const activeCols = TABS.find((t) => t.id === tab)?.cols ?? [];
     const chartData = rows.map((r) => ({

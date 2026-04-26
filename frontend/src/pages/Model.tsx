@@ -1,6 +1,6 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { fetchModelMetrics, fetchFeatureImportance, fetchPrediction } from "../api/client";
-import { useQuery } from "@tanstack/react-query";
+import type { ModelMetrics, FeatureImportance, Prediction } from "../api/client";
 import {
     BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Cell,
 } from "recharts";
@@ -18,29 +18,31 @@ function MetricCard({ label, value, sub }: { label: string; value: string; sub?:
 }
 
 export default function Model() {
+    const [metrics, setMetrics] = useState<ModelMetrics | null>(null);
+    const [importance, setImportance] = useState<FeatureImportance[]>([]);
     const [ticker, setTicker] = useState("AAPL");
+    const [prediction, setPrediction] = useState<Prediction | null>(null);
+    const [predicting, setPredicting] = useState(false);
+    const [predErr, setPredErr] = useState("");
 
-    // Pobieranie ogólnych metryk modelu
-    const { data: metrics } = useQuery({
-        queryKey: ["modelMetrics"],
-        queryFn: fetchModelMetrics,
-    });
+    useEffect(() => {
+        fetchModelMetrics().then(setMetrics);
+        fetchFeatureImportance().then((data) => setImportance(data.slice(0, 15)));
+    }, []);
 
-    // Pobieranie ważności cech
-    const { data: importance = [] } = useQuery({
-        queryKey: ["featureImportance"],
-        queryFn: async () => {
-            const data = await fetchFeatureImportance();
-            return data.slice(0, 15);
+    const handlePredict = async () => {
+        setPredicting(true);
+        setPredErr("");
+        setPrediction(null);
+        try {
+            const p = await fetchPrediction(ticker);
+            setPrediction(p);
+        } catch {
+            setPredErr("Nie udało się pobrać predykcji. Sprawdź czy backend działa.");
+        } finally {
+            setPredicting(false);
         }
-    });
-
-    // Pobieranie predykcji dla wybranego tickera
-    const { data: prediction, isFetching: predicting, error: predErr } = useQuery({
-        queryKey: ["prediction", ticker],
-        queryFn: () => fetchPrediction(ticker),
-        enabled: !!ticker,
-    });
+    };
 
     return (
         <div className="p-6">
@@ -62,7 +64,7 @@ export default function Model() {
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 {/* Feature importance */}
                 <div>
-                    <h2 className="text-lg font-semibold text-white mb-3">Feature Importance (Czołowa 15)</h2>
+                    <h2 className="text-lg font-semibold text-white mb-3">Feature Importance (Top 15)</h2>
                     <div className="bg-slate-800 rounded-xl p-4">
                         <ResponsiveContainer width="100%" height={420}>
                             <BarChart data={importance} layout="vertical">
@@ -113,45 +115,46 @@ export default function Model() {
                                 </button>
                             ))}
                         </div>
-                        <div className="bg-slate-900 border border-slate-700 rounded-xl p-8 flex flex-col items-center justify-center min-h-[250px]">
-                            {predicting ? (
-                                <div className="flex flex-col items-center gap-3">
-                                    <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-blue-500"></div>
-                                    <span className="text-slate-400">Model analizuje dane...</span>
-                                </div>
-                            ) : predErr ? (
-                                <div className="text-red-400 text-center">Błąd pobierania predykcji.</div>
-                            ) : prediction && (
-                                <div className="text-center w-full">
-                                    <div className={`text-6xl font-black mb-2 ${
-                                        prediction.direction === "UP" ? "text-emerald-500" : "text-red-500"
+
+                        <button
+                            onClick={handlePredict}
+                            disabled={predicting}
+                            className="w-full py-2.5 bg-blue-600 hover:bg-blue-500 disabled:bg-slate-600 text-white rounded-lg font-medium transition-colors mb-4"
+                        >
+                            {predicting ? "Obliczam..." : `Predict ${ticker}`}
+                        </button>
+
+                        {predErr && <p className="text-red-400 text-sm">{predErr}</p>}
+
+                        {prediction && (
+                            <div className="mt-2">
+                                <div className={`rounded-xl p-5 text-center ${
+                                    prediction.direction === "UP" ? "bg-emerald-900/40 border border-emerald-700" : "bg-red-900/40 border border-red-700"
+                                }`}>
+                                    <div className="text-4xl mb-2">
+                                        {prediction.direction === "UP" ? "📈" : "📉"}
+                                    </div>
+                                    <div className={`text-3xl font-bold mb-1 ${
+                                        prediction.direction === "UP" ? "text-emerald-400" : "text-red-400"
                                     }`}>
-                                        {prediction.direction}
+                                        {prediction.direction === "UP" ? "+" : ""}
+                                        {(prediction.predicted_return_3m * 100).toFixed(2)}%
                                     </div>
-                                    <div className="mb-6">
-                                        <div className={`text-2xl font-bold ${
-                                            prediction.direction === "UP" ? "text-emerald-400" : "text-red-400"
-                                        }`}>
-                                            {prediction.direction === "UP" ? "+" : ""}
-                                            {(prediction.predicted_return_3m * 100).toFixed(2)}%
-                                        </div>
-                                        <div className="text-slate-400 text-sm">przewidywany zwrot (90 dni)</div>
-                                    </div>
+                                    <div className="text-slate-400 text-sm">przewidywany zwrot (90 dni)</div>
+                                </div>
 
-                                    <div className="mt-3 grid grid-cols-2 gap-2 text-sm">
-                                        <div className="bg-slate-700 rounded-lg p-3">
-                                            <div className="text-slate-400 text-xs">Aktualna cena</div>
-                                            <div className="text-white font-semibold">${prediction.close_price?.toFixed(2)}</div>
-                                        </div>
-                                        <div className="bg-slate-700 rounded-lg p-3">
-                                            <div className="text-slate-400 text-xs">Data danych</div>
-                                            <div className="text-white font-semibold">{prediction.date}</div>
-                                        </div>
+                                <div className="mt-3 grid grid-cols-2 gap-2 text-sm">
+                                    <div className="bg-slate-700 rounded-lg p-3">
+                                        <div className="text-slate-400 text-xs">Aktualna cena</div>
+                                        <div className="text-white font-semibold">${prediction.close_price?.toFixed(2)}</div>
+                                    </div>
+                                    <div className="bg-slate-700 rounded-lg p-3">
+                                        <div className="text-slate-400 text-xs">Data danych</div>
+                                        <div className="text-white font-semibold">{prediction.date}</div>
                                     </div>
                                 </div>
-                            )}
-                        </div>
-
+                            </div>
+                        )}
                     </div>
                 </div>
             </div>
