@@ -15,7 +15,7 @@ DB_PASS = os.getenv("DB_PASS")
 DB_PORT = os.getenv("DB_PORT")
 DB_PATH = os.path.join(os.path.dirname(__file__), "med.db")
 
-TICKERS = ["AAPL", "AMZN", "GOOG", "META", "MSFT"]
+TICKERS = ["AAPL", "AMD", "AMZN", "AVGO", "GOOG", "META", "MSFT", "NVDA", "ORCL", "TSLA"]
 
 
 CATS = [
