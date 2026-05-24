@@ -5,7 +5,9 @@ from fastapi.middleware.cors import CORSMiddleware
 from backend.database import init_db, TICKERS
 from backend.scheduler import create_scheduler
 from backend.services import ml_service
-from backend.routers import financials, features, model
+from backend.routers import financials, features, model, agent
+from dotenv import load_dotenv
+load_dotenv("backend/.env")
 
 
 @asynccontextmanager
@@ -34,7 +36,7 @@ app.add_middleware(
 app.include_router(financials.router)
 app.include_router(features.router)
 app.include_router(model.router)
-
+app.include_router(agent.router)
 
 @app.get("/api/tickers")
 def list_tickers():
