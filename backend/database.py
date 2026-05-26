@@ -34,17 +34,45 @@ CATS = [
 
 
 FEATURE_COLS = [
-    "revenue_acceleration", "price_ma_4q", "accounts_payable_std_8",
-    "net_change_in_cash_std_16", "price_momentum_6m", "quality_score_lag2",
-    "revenue_growth_qoq", "profit_margin_lag2", "cash_and_cash_equivalents_std_8",
-    "income_tax_expense_std_16", "nonoperating_income_expense_std_16",
-    "total_liabilities_std_8", "earnings_volatility", "accounts_receivable_std_16",
-    "retained_earnings_std_16", "profit_margin_lag4",
-    "net_cash_from_financing_activities_std_8", "roa", "earnings_trend",
-    "eps_acceleration", "debt_to_assets", "eps_growth_yoy",
-    "total_assets_std_16", "total_current_liabilities_std_8", "cf_to_debt",
-    "cost_of_goods_and_services_sold_std_16", "revenue_trend",
-    "earnings_per_share_basic__std_8", "eps_surprise", "quality_score_lag4",
+    # Profitability
+    "profit_margin", "gross_margin", "operating_margin",
+    "roa", "roe", "roic", "operating_cf_margin",
+    # Growth
+    "revenue_growth_qoq", "revenue_growth_yoy",
+    "earnings_growth_qoq", "earnings_growth_yoy", "eps_growth_yoy",
+    # Acceleration
+    "revenue_acceleration", "earnings_acceleration", "eps_acceleration",
+    # Valuation
+    "pe_ratio", "price_ma_4q", "price_vs_ma4q",
+    # Price Momentum
+    "price_momentum_3m", "price_momentum_6m", "price_momentum_12m", "price_volatility_4q",
+    # Leverage & Liquidity
+    "debt_to_assets", "current_ratio", "cf_to_debt", "asset_turnover",
+    # Cash Flow
+    "fcf_margin",
+    # Volatility
+    "earnings_volatility", "revenue_volatility",
+    # Surprises
+    "eps_surprise", "revenue_surprise", "earnings_surprise",
+    # Trends & Streaks
+    "revenue_trend", "earnings_trend",
+    "positive_earnings_streak", "positive_revenue_streak",
+    # Changes
+    "profit_margin_change", "roe_change",
+    # Composite Scores
+    "quality_score", "growth_score", "momentum_score",
+    # Lags
+    "quality_score_lag1", "quality_score_lag2", "quality_score_lag4",
+    "profit_margin_lag1", "profit_margin_lag2", "profit_margin_lag4",
+    "roe_lag1", "roe_lag2", "roe_lag4",
+    # Z-scores
+    "accounts_payable_std_8", "net_change_in_cash_std_16",
+    "cash_and_cash_equivalents_std_8", "income_tax_expense_std_16",
+    "nonoperating_income_expense_std_16", "total_liabilities_std_8",
+    "accounts_receivable_std_16", "retained_earnings_std_16",
+    "net_cash_from_financing_activities_std_8", "total_assets_std_16",
+    "total_current_liabilities_std_8", "cost_of_goods_and_services_sold_std_16",
+    "earnings_per_share_basic__std_8",
 ]
 
 

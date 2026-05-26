@@ -1,13 +1,26 @@
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useState, useMemo, useCallback } from "react";
 import { fetchEdgar } from "../api/client";
 import type { FinancialRow } from "../api/client";
 import { DateRangeBar } from "../components/DateRangeBar";
 import {
-    BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid,
-    ReferenceLine,
+    LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid,
+    ReferenceLine, Legend,
 } from "recharts";
 
 const TICKERS = ["AAPL", "AMD", "AMZN", "AVGO", "GOOG", "META", "MSFT", "NVDA", "ORCL", "TSLA"];
+
+const COLORS: Record<string, string> = {
+    AAPL: "#60a5fa",
+    AMD:  "#fb923c",
+    AMZN: "#f59e0b",
+    AVGO: "#e879f9",
+    GOOG: "#34d399",
+    META: "#a78bfa",
+    MSFT: "#f87171",
+    NVDA: "#4ade80",
+    ORCL: "#f43f5e",
+    TSLA: "#38bdf8",
+};
 
 const INCOME_COLS = [
     { key: "revenue", label: "Revenue" },
@@ -56,62 +69,97 @@ const fmt = (v: number | null) => {
 };
 
 export default function Financials() {
-    const [ticker, setTicker] = useState("AAPL");
-    const [tab, setTab] = useState("income");
-    const [rows, setRows] = useState<FinancialRow[]>([]);
-    const [chartMetric, setChartMetric] = useState("revenue");
-    const [loading, setLoading] = useState(true);
-    const [dateRange, setDateRange] = useState({ start: "", end: "" });
+    const [selectedTickers, setSelected] = useState<Set<string>>(new Set(["AAPL"]));
+    const [primaryTicker, setPrimary]    = useState("AAPL");
+    const [tab, setTab]                  = useState("income");
+    const [chartMetric, setChartMetric]  = useState("revenue");
+    const [tickerData, setTickerData]    = useState<Map<string, FinancialRow[]>>(new Map());
+    const [fetchingSet, setFetchingSet]  = useState<Set<string>>(new Set(["AAPL"]));
+    const [dateRange, setDateRange]      = useState({ start: "", end: "" });
 
-    useEffect(() => {
-        setLoading(true);
-        setDateRange({ start: "", end: "" });
-        fetchEdgar(ticker)
-            .then(setRows)
-            .finally(() => setLoading(false));
-    }, [ticker]);
+    const activeTickers = TICKERS.filter((t) => selectedTickers.has(t));
 
-    // Bounds from loaded data
+    const fetchTicker = useCallback((t: string) => {
+        setFetchingSet((prev) => new Set(prev).add(t));
+        fetchEdgar(t)
+            .then((data) => setTickerData((prev) => new Map(prev).set(t, data)))
+            .finally(() => setFetchingSet((prev) => { const n = new Set(prev); n.delete(t); return n; }));
+    }, []);
+
+    // Load AAPL on mount
+    useEffect(() => { fetchTicker("AAPL"); }, []);
+
+    const toggleTicker = (t: string) => {
+        setSelected((prev) => {
+            const next = new Set(prev);
+            if (next.has(t)) {
+                next.delete(t);
+                if (primaryTicker === t) {
+                    const remaining = TICKERS.filter((x) => next.has(x));
+                    setPrimary(remaining[0] ?? "");
+                }
+            } else {
+                next.add(t);
+                setPrimary(t);
+                if (!tickerData.has(t)) fetchTicker(t);
+            }
+            return next;
+        });
+    };
+
+    const loading = fetchingSet.size > 0;
+
+    // Date bounds: union of all selected tickers
     const { minDate, maxDate } = useMemo(() => {
-        if (!rows.length) return { minDate: "", maxDate: "" };
-        const dates = rows.map((r) => r.date).filter(Boolean).sort();
-        return { minDate: dates[0], maxDate: dates[dates.length - 1] };
-    }, [rows]);
-
-    // Init range to Max when data arrives; reset on ticker change
-    useEffect(() => {
-        if (minDate && maxDate) {
-            setDateRange({ start: minDate, end: maxDate });
+        const dates: string[] = [];
+        for (const t of activeTickers) {
+            (tickerData.get(t) ?? []).forEach((r) => { if (r.date) dates.push(r.date); });
         }
+        if (!dates.length) return { minDate: "", maxDate: "" };
+        dates.sort();
+        return { minDate: dates[0], maxDate: dates[dates.length - 1] };
+    }, [tickerData, activeTickers]);
+
+    useEffect(() => {
+        if (minDate && maxDate) setDateRange({ start: minDate, end: maxDate });
     }, [minDate, maxDate]);
 
     const activeCols = TABS.find((t) => t.id === tab)?.cols ?? [];
 
-    // Filter rows by date range (slice)
+    // Chart data: one row per date, one key per ticker
+    const chartData = useMemo(() => {
+        const byDate: Record<string, Record<string, number | string | null>> = {};
+        for (const t of activeTickers) {
+            for (const r of tickerData.get(t) ?? []) {
+                if (!r.date) continue;
+                if (dateRange.start && r.date < dateRange.start) continue;
+                if (dateRange.end && r.date > dateRange.end) continue;
+                const key = r.date.slice(0, 7);
+                if (!byDate[key]) byDate[key] = { date: key };
+                byDate[key][t] = r[chartMetric] as number | null;
+            }
+        }
+        return Object.values(byDate).sort((a, b) => (a.date as string).localeCompare(b.date as string));
+    }, [tickerData, activeTickers, chartMetric, dateRange]);
+
+    // Table: primary ticker only
     const filteredRows = useMemo(() => {
+        const rows = tickerData.get(primaryTicker) ?? [];
         if (!dateRange.start || !dateRange.end) return rows;
         return rows.filter((r) => r.date >= dateRange.start && r.date <= dateRange.end);
-    }, [rows, dateRange]);
+    }, [tickerData, primaryTicker, dateRange]);
 
-    // Chart data for selected metric
-    const chartData = useMemo(() =>
-        filteredRows.map((r) => ({
-            date: r.date?.slice(0, 7),
-            value: r[chartMetric] as number | null,
-        })), [filteredRows, chartMetric]);
-
-    // Period delta: first vs last value for selected metric in range
-    const periodDelta = useMemo(() => {
-        const vals = filteredRows
-            .map((r) => r[chartMetric] as number | null)
-            .filter((v): v is number => v != null);
-        if (vals.length < 2) return null;
-        const first = vals[0];
-        const last = vals[vals.length - 1];
-        return { first, last, pct: ((last - first) / Math.abs(first)) * 100 };
-    }, [filteredRows, chartMetric]);
-
-    const activeLabel = activeCols.find((c) => c.key === chartMetric)?.label ?? chartMetric;
+    // Period delta per ticker for selected metric
+    const periodDeltas = useMemo(() => {
+        return activeTickers.map((t) => {
+            const rows = (tickerData.get(t) ?? [])
+                .filter((r) => r.date >= dateRange.start && r.date <= dateRange.end);
+            const vals = rows.map((r) => r[chartMetric] as number | null).filter((v): v is number => v != null);
+            if (vals.length < 2) return { ticker: t, pct: null, last: null };
+            const first = vals[0], last = vals[vals.length - 1];
+            return { ticker: t, pct: ((last - first) / Math.abs(first)) * 100, last };
+        });
+    }, [tickerData, activeTickers, chartMetric, dateRange]);
 
     return (
         <div className="max-w-7xl mx-auto w-full p-6 lg:p-10 space-y-6">
@@ -120,24 +168,28 @@ export default function Financials() {
                 <p className="text-slate-400 text-sm">Dane kwartalne z EDGAR</p>
             </div>
 
-            {/* Ticker selector */}
-            <div className="flex gap-2">
-                {TICKERS.map((t) => (
-                    <button
-                        key={t}
-                        onClick={() => setTicker(t)}
-                        className={`px-4 py-1.5 rounded text-sm font-medium transition-colors ${
-                            ticker === t
-                                ? "bg-blue-600 text-white"
-                                : "bg-slate-700 text-slate-300 hover:bg-slate-600"
-                        }`}
-                    >
-                        {t}
-                    </button>
-                ))}
+            {/* Multi-select ticker buttons */}
+            <div className="flex gap-2 flex-wrap">
+                {TICKERS.map((t) => {
+                    const active = selectedTickers.has(t);
+                    const color  = COLORS[t];
+                    return (
+                        <button
+                            key={t}
+                            onClick={() => toggleTicker(t)}
+                            className={`px-4 py-1.5 rounded text-sm font-medium transition-all border ${
+                                active
+                                    ? "shadow-sm"
+                                    : "bg-slate-700 text-slate-400 hover:bg-slate-600 border-transparent"
+                            }`}
+                            style={active ? { backgroundColor: color + "22", borderColor: color, color } : {}}
+                        >
+                            {t}
+                        </button>
+                    );
+                })}
             </div>
 
-            {/* OLAP Time Slice — suwaki */}
             <DateRangeBar
                 minDate={minDate}
                 maxDate={maxDate}
@@ -145,8 +197,9 @@ export default function Financials() {
                 end={dateRange.end}
                 onStartChange={(v) => setDateRange((p) => ({ ...p, start: v }))}
                 onEndChange={(v) => setDateRange((p) => ({ ...p, end: v }))}
-                dataCount={filteredRows.length}
+                dataCount={chartData.length}
                 dataLabel="kwartały"
+                visiblePresets={["1Y", "3Y", "5Y", "Max"]}
             />
 
             {/* Tab selector */}
@@ -166,7 +219,7 @@ export default function Financials() {
                 ))}
             </div>
 
-            {loading ? (
+            {loading && activeTickers.length === 0 ? (
                 <div className="flex items-center justify-center h-40 text-slate-400">Ładowanie...</div>
             ) : (
                 <>
@@ -186,28 +239,24 @@ export default function Financials() {
                                 </select>
                             </div>
 
-                            {/* Period delta badge */}
-                            {periodDelta && (
-                                <div className="ml-auto flex items-center gap-3 text-sm">
-                                    <span className="text-slate-400">{activeLabel} w zakresie:</span>
-                                    <span className="font-mono text-slate-200">{fmt(periodDelta.first)}</span>
-                                    <span className="text-slate-600">→</span>
-                                    <span className="font-mono text-slate-200">{fmt(periodDelta.last)}</span>
-                                    <span
-                                        className={`font-bold font-mono px-2 py-0.5 rounded text-xs ${
-                                            periodDelta.pct >= 0
-                                                ? "text-emerald-400 bg-emerald-400/10"
-                                                : "text-red-400 bg-red-400/10"
-                                        }`}
+                            {/* Per-ticker delta badges */}
+                            <div className="ml-auto flex gap-2 flex-wrap">
+                                {periodDeltas.map(({ ticker, pct }) => pct !== null && (
+                                    <span key={ticker} className="text-xs font-mono font-bold px-2 py-0.5 rounded"
+                                        style={{
+                                            color: COLORS[ticker],
+                                            background: COLORS[ticker] + "22",
+                                            border: `1px solid ${COLORS[ticker]}44`,
+                                        }}
                                     >
-                                        {periodDelta.pct >= 0 ? "+" : ""}{periodDelta.pct.toFixed(1)}%
+                                        {ticker} {pct >= 0 ? "+" : ""}{pct.toFixed(1)}%
                                     </span>
-                                </div>
-                            )}
+                                ))}
+                            </div>
                         </div>
 
-                        <ResponsiveContainer width="100%" height={260}>
-                            <BarChart data={chartData}>
+                        <ResponsiveContainer width="100%" height={480}>
+                            <LineChart data={chartData}>
                                 <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
                                 <XAxis dataKey="date" tick={{ fill: "#94a3b8", fontSize: 10 }} interval="preserveStartEnd" />
                                 <YAxis
@@ -217,50 +266,83 @@ export default function Financials() {
                                 />
                                 <Tooltip
                                     contentStyle={{ background: "#1e293b", border: "1px solid #334155", borderRadius: 8 }}
-                                    formatter={(v) => [fmt(Number(v)), activeLabel]}
+                                    labelStyle={{ color: "#cbd5e1" }}
+                                    formatter={(v, name) => [fmt(Number(v)), name]}
                                 />
                                 <ReferenceLine y={0} stroke="#475569" strokeDasharray="4 4" />
-                                <Bar dataKey="value" fill="#3b82f6" radius={[3, 3, 0, 0]} />
-                            </BarChart>
+                                <Legend wrapperStyle={{ color: "#94a3b8" }} />
+                                {activeTickers.map((t) => (
+                                    <Line
+                                        key={t}
+                                        type="monotone"
+                                        dataKey={t}
+                                        stroke={COLORS[t] ?? "#94a3b8"}
+                                        dot={{ r: 3, fill: COLORS[t] ?? "#94a3b8", strokeWidth: 0 }}
+                                        activeDot={{ r: 5 }}
+                                        strokeWidth={2}
+                                        connectNulls
+                                    />
+                                ))}
+                            </LineChart>
                         </ResponsiveContainer>
                     </div>
 
-                    {/* Table */}
-                    <div className="bg-slate-800 rounded-xl overflow-auto">
-                        <table className="w-full text-sm">
-                            <thead>
-                                <tr className="border-b border-slate-700">
-                                    <th className="text-left px-4 py-2 text-slate-400 font-medium sticky left-0 bg-slate-800">
-                                        Quarter
-                                    </th>
-                                    {activeCols.map((c) => (
-                                        <th key={c.key} className="text-right px-4 py-2 text-slate-400 font-medium whitespace-nowrap">
-                                            {c.label}
-                                        </th>
+                    {/* Table with primary ticker selector */}
+                    {primaryTicker && (
+                        <div className="bg-slate-800 rounded-xl overflow-auto">
+                            {activeTickers.length > 1 && (
+                                <div className="flex items-center gap-2 px-4 pt-3 pb-1">
+                                    <span className="text-xs text-slate-500 uppercase tracking-widest font-bold">Tabela dla:</span>
+                                    {activeTickers.map((t) => (
+                                        <button
+                                            key={t}
+                                            onClick={() => setPrimary(t)}
+                                            className="px-2.5 py-0.5 rounded text-xs font-bold transition-all border"
+                                            style={primaryTicker === t
+                                                ? { color: COLORS[t], background: COLORS[t] + "22", borderColor: COLORS[t] + "66" }
+                                                : { color: "#64748b", background: "transparent", borderColor: "transparent" }
+                                            }
+                                        >
+                                            {t}
+                                        </button>
                                     ))}
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {[...filteredRows].reverse().map((r) => (
-                                    <tr key={r.date} className="border-b border-slate-700/50 hover:bg-slate-700/30 transition-colors">
-                                        <td className="px-4 py-2 text-slate-300 font-mono sticky left-0 bg-slate-800">
-                                            {r.date?.slice(0, 10)}
-                                        </td>
+                                </div>
+                            )}
+                            <table className="w-full text-sm">
+                                <thead>
+                                    <tr className="border-b border-slate-700">
+                                        <th className="text-left px-4 py-2 text-slate-400 font-medium sticky left-0 bg-slate-800">
+                                            Quarter
+                                        </th>
                                         {activeCols.map((c) => (
-                                            <td
-                                                key={c.key}
-                                                className={`px-4 py-2 text-right font-mono tabular-nums ${
-                                                    (r[c.key] as number) < 0 ? "text-red-400" : "text-slate-200"
-                                                }`}
-                                            >
-                                                {fmt(r[c.key] as number | null)}
-                                            </td>
+                                            <th key={c.key} className="text-right px-4 py-2 text-slate-400 font-medium whitespace-nowrap">
+                                                {c.label}
+                                            </th>
                                         ))}
                                     </tr>
-                                ))}
-                            </tbody>
-                        </table>
-                    </div>
+                                </thead>
+                                <tbody>
+                                    {[...filteredRows].reverse().map((r) => (
+                                        <tr key={r.date} className="border-b border-slate-700/50 hover:bg-slate-700/30 transition-colors">
+                                            <td className="px-4 py-2 text-slate-300 font-mono sticky left-0 bg-slate-800">
+                                                {r.date?.slice(0, 10)}
+                                            </td>
+                                            {activeCols.map((c) => (
+                                                <td
+                                                    key={c.key}
+                                                    className={`px-4 py-2 text-right font-mono tabular-nums ${
+                                                        (r[c.key] as number) < 0 ? "text-red-400" : "text-slate-200"
+                                                    }`}
+                                                >
+                                                    {fmt(r[c.key] as number | null)}
+                                                </td>
+                                            ))}
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
+                    )}
                 </>
             )}
         </div>

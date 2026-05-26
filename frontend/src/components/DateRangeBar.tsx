@@ -39,12 +39,14 @@ interface Props {
     onEndChange: (v: string) => void;
     dataCount?: number;
     dataLabel?: string;
+    visiblePresets?: string[];
 }
 
 export function DateRangeBar({
     minDate, maxDate, start, end,
     onStartChange, onEndChange,
     dataCount, dataLabel = "records",
+    visiblePresets,
 }: Props) {
     if (!minDate || !maxDate || !start || !end) return null;
 
@@ -96,7 +98,7 @@ export function DateRangeBar({
                 </span>
 
                 <div className="flex gap-1">
-                    {PRESETS.map((p) => (
+                    {PRESETS.filter((p) => !visiblePresets || visiblePresets.includes(p.label)).map((p) => (
                         <button
                             key={p.label}
                             onClick={() => handlePreset(p.months ?? null)}

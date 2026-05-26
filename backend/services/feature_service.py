@@ -75,71 +75,122 @@ def compute_features(ticker: str) -> pd.DataFrame | None:
     # ── Close price ──────────────────────────────────────────────────────────
     df["close_price"] = _get_quarterly_prices(ticker, df["date"])
 
-    # ── Basic ratios ─────────────────────────────────────────────────────────
-    # (Zabezpieczenie przed dzieleniem przez zero dla Postgresa)
-    df["profit_margin"] = df["net_income"] / df["revenue"].replace(0, np.nan)
-    df["roa"] = df["net_income"] / df["total_assets"].replace(0, np.nan)
-    df["roe"] = df["net_income"] / df["total_stockholders_equity"].replace(0, np.nan)
-    df["operating_cf_margin"] = df["net_cash_from_operating_activities"] / df["revenue"].replace(0, np.nan)
+    # ── Profitability ─────────────────────────────────────────────────────────
+    rev = df["revenue"].replace(0, np.nan)
+    df["profit_margin"]      = df["net_income"] / rev
+    df["gross_margin"]       = df["gross_profit"] / rev
+    df["operating_margin"]   = df["operating_income"] / rev
+    df["roa"]                = df["net_income"] / df["total_assets"].replace(0, np.nan)
+    df["roe"]                = df["net_income"] / df["total_stockholders_equity"].replace(0, np.nan)
+    df["roic"]               = df["operating_income"] / (df["total_stockholders_equity"] + df["total_liabilities"]).replace(0, np.nan)
+    df["operating_cf_margin"] = df["net_cash_from_operating_activities"] / rev
+
+    # ── Leverage & Liquidity ──────────────────────────────────────────────────
     df["debt_to_assets"] = df["total_liabilities"] / df["total_assets"].replace(0, np.nan)
-    df["cf_to_debt"] = df["net_cash_from_operating_activities"] / df["total_liabilities"].replace(0, np.nan)
+    df["cf_to_debt"]     = df["net_cash_from_operating_activities"] / df["total_liabilities"].replace(0, np.nan)
+    df["current_ratio"]  = df["total_current_assets"] / df["total_current_liabilities"].replace(0, np.nan)
+    df["asset_turnover"] = rev / df["total_assets"].replace(0, np.nan)
+
+    # ── Cash Flow ─────────────────────────────────────────────────────────────
+    fcf = df["net_cash_from_operating_activities"] + df["net_cash_from_investing_activities"]
+    df["fcf_margin"] = fcf / rev
 
     # ── Growth rates ─────────────────────────────────────────────────────────
-    df["revenue_growth_qoq"] = df["revenue"].pct_change(1, fill_method=None)
+    df["revenue_growth_qoq"]  = df["revenue"].pct_change(1, fill_method=None)
+    df["revenue_growth_yoy"]  = df["revenue"].pct_change(4, fill_method=None)
     df["earnings_growth_qoq"] = df["net_income"].pct_change(1, fill_method=None)
-    df["eps_growth_qoq"] = df["earnings_per_share_basic_"].pct_change(1, fill_method=None)
-    df["eps_growth_yoy"] = df["earnings_per_share_basic_"].pct_change(4, fill_method=None)
+    df["earnings_growth_yoy"] = df["net_income"].pct_change(4, fill_method=None)
+    df["eps_growth_qoq"]      = df["earnings_per_share_basic_"].pct_change(1, fill_method=None)
+    df["eps_growth_yoy"]      = df["earnings_per_share_basic_"].pct_change(4, fill_method=None)
 
-    # ── Acceleration (second derivative) ────────────────────────────────────
-    df["revenue_acceleration"] = df["revenue_growth_qoq"].diff()
+    # ── Acceleration ─────────────────────────────────────────────────────────
+    df["revenue_acceleration"]  = df["revenue_growth_qoq"].diff()
     df["earnings_acceleration"] = df["earnings_growth_qoq"].diff()
-    df["eps_acceleration"] = df["eps_growth_qoq"].diff()
+    df["eps_acceleration"]      = df["eps_growth_qoq"].diff()
 
-    # ── Trend (polyfit slope over 4 quarters) ───────────────────────────────
-    df["revenue_trend"] = _polyfit_slope(df["revenue"], 4)
-    df["earnings_trend"] = _polyfit_slope(df["net_income"], 4)
+    # ── Price features ───────────────────────────────────────────────────────
+    df["price_ma_4q"]       = df["close_price"].rolling(4, min_periods=2).mean()
+    df["price_vs_ma4q"]     = (df["close_price"] - df["price_ma_4q"]) / df["price_ma_4q"].replace(0, np.nan)
+    df["price_momentum_3m"] = df["close_price"].pct_change(1, fill_method=None)
+    df["price_momentum_6m"] = df["close_price"].pct_change(2, fill_method=None)
+    df["price_momentum_12m"] = df["close_price"].pct_change(4, fill_method=None)
+    df["price_volatility_4q"] = df["close_price"].pct_change(fill_method=None).rolling(4, min_periods=2).std()
+    df["pe_ratio"] = df["close_price"] / (df["earnings_per_share_basic_"] * 4).replace(0, np.nan)
 
     # ── Volatility ───────────────────────────────────────────────────────────
     df["earnings_volatility"] = (
         df["net_income"].rolling(4, min_periods=2).std()
         / df["net_income"].rolling(4, min_periods=2).mean().replace(0, np.nan)
     )
+    df["revenue_volatility"] = (
+        df["revenue"].rolling(4, min_periods=2).std()
+        / df["revenue"].rolling(4, min_periods=2).mean().replace(0, np.nan)
+    )
 
-    # ── EPS surprise ─────────────────────────────────────────────────────────
+    # ── Surprises ────────────────────────────────────────────────────────────
     eps_ma4 = df["earnings_per_share_basic_"].rolling(4, min_periods=2).mean()
     df["eps_surprise"] = (df["earnings_per_share_basic_"] - eps_ma4) / eps_ma4.replace(0, np.nan)
+    rev_ma4 = df["revenue"].rolling(4, min_periods=2).mean()
+    df["revenue_surprise"] = (df["revenue"] - rev_ma4) / rev_ma4.replace(0, np.nan)
+    ni_ma4 = df["net_income"].rolling(4, min_periods=2).mean()
+    df["earnings_surprise"] = (df["net_income"] - ni_ma4) / ni_ma4.replace(0, np.nan)
 
-    # ── Quality score (composite) ────────────────────────────────────────────
+    # ── Trend ────────────────────────────────────────────────────────────────
+    df["revenue_trend"]  = _polyfit_slope(df["revenue"], 4)
+    df["earnings_trend"] = _polyfit_slope(df["net_income"], 4)
+
+    # ── Streaks ──────────────────────────────────────────────────────────────
+    df["positive_earnings_streak"] = (df["earnings_growth_qoq"] > 0).rolling(4, min_periods=1).sum()
+    df["positive_revenue_streak"]  = (df["revenue_growth_qoq"] > 0).rolling(4, min_periods=1).sum()
+
+    # ── Changes ──────────────────────────────────────────────────────────────
+    df["profit_margin_change"] = df["profit_margin"].diff()
+    df["roe_change"]           = df["roe"].diff()
+
+    # ── Composite scores ─────────────────────────────────────────────────────
     df["quality_score"] = (
-        df["roe"] * 0.4
-        + df["profit_margin"] * 0.3
-        + df["operating_cf_margin"] * 0.3
+        df["roe"].fillna(0) * 0.4
+        + df["profit_margin"].fillna(0) * 0.3
+        + df["operating_cf_margin"].fillna(0) * 0.3
     )
-    df["quality_score_lag2"] = df["quality_score"].shift(2)
-    df["quality_score_lag4"] = df["quality_score"].shift(4)
+    df["growth_score"] = (
+        df["revenue_growth_yoy"].fillna(0) * 0.4
+        + df["earnings_growth_yoy"].fillna(0) * 0.4
+        + df["positive_earnings_streak"].fillna(0) / 4 * 0.2
+    )
+    df["momentum_score"] = (
+        df["price_momentum_12m"].fillna(0) * 0.5
+        + df["eps_growth_yoy"].fillna(0) * 0.3
+        + df["revenue_growth_yoy"].fillna(0) * 0.2
+    )
 
-    # ── Profit margin lags ───────────────────────────────────────────────────
-    df["profit_margin_lag2"] = df["profit_margin"].shift(2)
-    df["profit_margin_lag4"] = df["profit_margin"].shift(4)
+    # ── Lags ─────────────────────────────────────────────────────────────────
+    df["quality_score_lag1"]  = df["quality_score"].shift(1)
+    df["quality_score_lag2"]  = df["quality_score"].shift(2)
+    df["quality_score_lag4"]  = df["quality_score"].shift(4)
+    df["profit_margin_lag1"]  = df["profit_margin"].shift(1)
+    df["profit_margin_lag2"]  = df["profit_margin"].shift(2)
+    df["profit_margin_lag4"]  = df["profit_margin"].shift(4)
+    df["roe_lag1"]            = df["roe"].shift(1)
+    df["roe_lag2"]            = df["roe"].shift(2)
+    df["roe_lag4"]            = df["roe"].shift(4)
 
-    # ── Price features ───────────────────────────────────────────────────────
-    df["price_ma_4q"] = df["close_price"].rolling(4, min_periods=2).mean()
-    df["price_momentum_6m"] = df["close_price"].pct_change(2, fill_method=None)
-
-    # ── Z-scores (rolling standardization) ──────────────────────────────────
-    df["accounts_payable_std_8"] = _rolling_zscore(df["accounts_payable"], 8)
-    df["net_change_in_cash_std_16"] = _rolling_zscore(df["net_change_in_cash"], 16)
-    df["cash_and_cash_equivalents_std_8"] = _rolling_zscore(df["cash_and_cash_equivalents"], 8)
-    df["income_tax_expense_std_16"] = _rolling_zscore(df["income_tax_expense"], 16)
-    df["nonoperating_income_expense_std_16"] = _rolling_zscore(df["nonoperating_income_expense"], 16)
-    df["total_liabilities_std_8"] = _rolling_zscore(df["total_liabilities"], 8)
-    df["accounts_receivable_std_16"] = _rolling_zscore(df["accounts_receivable"], 16)
-    df["retained_earnings_std_16"] = _rolling_zscore(df["retained_earnings"], 16)
+    # ── Z-scores ─────────────────────────────────────────────────────────────
+    df["accounts_payable_std_8"]                   = _rolling_zscore(df["accounts_payable"], 8)
+    df["net_change_in_cash_std_16"]                = _rolling_zscore(df["net_change_in_cash"], 16)
+    df["cash_and_cash_equivalents_std_8"]          = _rolling_zscore(df["cash_and_cash_equivalents"], 8)
+    df["income_tax_expense_std_16"]                = _rolling_zscore(df["income_tax_expense"], 16)
+    df["nonoperating_income_expense_std_16"]       = _rolling_zscore(df["nonoperating_income_expense"], 16)
+    df["total_liabilities_std_8"]                  = _rolling_zscore(df["total_liabilities"], 8)
+    df["accounts_receivable_std_16"]               = _rolling_zscore(df["accounts_receivable"], 16)
+    df["retained_earnings_std_16"]                 = _rolling_zscore(df["retained_earnings"], 16)
     df["net_cash_from_financing_activities_std_8"] = _rolling_zscore(df["net_cash_from_financing_activities"], 8)
-    df["total_assets_std_16"] = _rolling_zscore(df["total_assets"], 16)
-    df["total_current_liabilities_std_8"] = _rolling_zscore(df["total_current_liabilities"], 8)
-    df["cost_of_goods_and_services_sold_std_16"] = _rolling_zscore(df["cost_of_goods_and_services_sold"], 16)
-    df["earnings_per_share_basic__std_8"] = _rolling_zscore(df["earnings_per_share_basic_"], 8)
+    df["total_assets_std_16"]                      = _rolling_zscore(df["total_assets"], 16)
+    df["total_current_liabilities_std_8"]          = _rolling_zscore(df["total_current_liabilities"], 8)
+    df["cost_of_goods_and_services_sold_std_16"]   = _rolling_zscore(df["cost_of_goods_and_services_sold"], 16)
+    df["earnings_per_share_basic__std_8"]          = _rolling_zscore(df["earnings_per_share_basic_"], 8)
+
+    df = df.replace([np.inf, -np.inf], np.nan)
 
     # ── Store date as string ─────────────────────────────────────────────────
     df["date"] = df["date"].dt.strftime("%Y-%m-%d")

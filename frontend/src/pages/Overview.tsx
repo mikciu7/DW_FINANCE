@@ -56,10 +56,11 @@ export default function Overview() {
 
     const allTickers = useMemo(() => [...new Set(rows.map((r) => r.ticker))].sort(), [rows]);
 
-    // Domyślnie zaznacz wszystkie po pierwszym załadowaniu
+    // Domyślnie zaznacz AAPL, AMZN, ORCL po pierwszym załadowaniu
     useEffect(() => {
         if (allTickers.length && selectedTickers.size === 0) {
-            setSelected(new Set(allTickers));
+            const defaults = new Set(["AAPL", "AMZN", "ORCL"].filter((t) => allTickers.includes(t)));
+            setSelected(defaults.size > 0 ? defaults : new Set(allTickers));
         }
     }, [allTickers]);
 
@@ -117,109 +118,111 @@ export default function Overview() {
                 dataLabel="dni"
             />
 
-            {/* Karty spółek — klikalne, służą jako selector */}
-            {!loading && periodStats.length > 0 && (
-                <div className="space-y-2">
-                    <div className="flex items-center gap-2">
-                        <span className="text-[10px] font-bold uppercase tracking-widest text-slate-500">
-                            Spółki ({selectedTickers.size}/{allTickers.length})
-                        </span>
-                        <button onClick={selectAll} className="text-[10px] text-indigo-400 hover:text-indigo-300 font-bold">
-                            Wszystkie
-                        </button>
-                        <span className="text-slate-700">·</span>
-                        <button onClick={clearAll} className="text-[10px] text-slate-500 hover:text-slate-400 font-bold">
-                            Wyczyść
-                        </button>
-                    </div>
-
-                    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
-                        {periodStats.map(({ ticker, pct, startP, endP }) => {
-                            const color    = COLORS[ticker] ?? "#94a3b8";
-                            const active   = selectedTickers.has(ticker);
-                            const up       = pct !== null && pct > 0;
-                            const down     = pct !== null && pct < 0;
-                            return (
-                                <button
-                                    key={ticker}
-                                    onClick={() => toggleTicker(ticker)}
-                                    className={`text-left rounded-xl p-3 flex flex-col gap-1 border transition-all ${
-                                        active
-                                            ? "bg-slate-800 border-slate-600 shadow-sm"
-                                            : "bg-slate-800/30 border-slate-800 opacity-40 hover:opacity-60"
-                                    }`}
-                                    style={active ? { borderLeftColor: color, borderLeftWidth: 3 } : {}}
-                                >
-                                    <div className="flex items-center justify-between">
-                                        <span className="text-xs font-bold font-mono" style={{ color: active ? color : "#64748b" }}>
-                                            {ticker}
-                                        </span>
-                                        {active && pct !== null && (
-                                            up   ? <TrendingUp  size={13} className="text-emerald-400" />
-                                            : down ? <TrendingDown size={13} className="text-red-400" />
-                                            : <Minus size={13} className="text-slate-500" />
-                                        )}
-                                    </div>
-                                    <div className={`text-base font-bold ${
-                                        !active ? "text-slate-600" :
-                                        up ? "text-emerald-400" : down ? "text-red-400" : "text-slate-400"
-                                    }`}>
-                                        {pct !== null ? fmtPct(pct) : "—"}
-                                    </div>
-                                    <div className="text-[10px] text-slate-500 font-mono">
-                                        {startP != null ? fmt(startP) : "—"} → {endP != null ? fmt(endP) : "—"}
-                                    </div>
-                                </button>
-                            );
-                        })}
-                    </div>
-                </div>
-            )}
-
             {loading ? (
                 <div className="flex items-center justify-center h-64 text-slate-400">Ładowanie...</div>
             ) : (
-                <div className="bg-slate-800 rounded-xl p-4">
-                    {activeTickers.length === 0 ? (
-                        <div className="flex items-center justify-center h-64 text-slate-500">
-                            Zaznacz przynajmniej jedną spółkę
-                        </div>
-                    ) : (
-                        <ResponsiveContainer width="100%" height={420}>
-                            <LineChart data={chartData}>
-                                <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
-                                <XAxis
-                                    dataKey="date"
-                                    tick={{ fill: "#94a3b8", fontSize: 11 }}
-                                    tickFormatter={(v) => v.slice(0, 7)}
-                                    interval="preserveStartEnd"
-                                />
-                                <YAxis
-                                    tick={{ fill: "#94a3b8", fontSize: 11 }}
-                                    tickFormatter={(v) => `$${v}`}
-                                    width={65}
-                                />
-                                <Tooltip
-                                    contentStyle={{ background: "#1e293b", border: "1px solid #334155", borderRadius: 8 }}
-                                    labelStyle={{ color: "#cbd5e1" }}
-                                    formatter={(v, name) => [`$${Number(v).toFixed(2)}`, name]}
-                                />
-                                <Legend wrapperStyle={{ color: "#94a3b8" }} />
-                                {activeTickers.map((t) => (
-                                    <Line
-                                        key={t}
-                                        type="monotone"
-                                        dataKey={t}
-                                        stroke={COLORS[t] ?? "#94a3b8"}
-                                        dot={false}
-                                        strokeWidth={1.8}
-                                        connectNulls
+                <>
+                    <div className="bg-slate-800 rounded-xl p-4">
+                        {activeTickers.length === 0 ? (
+                            <div className="flex items-center justify-center h-64 text-slate-500">
+                                Zaznacz przynajmniej jedną spółkę
+                            </div>
+                        ) : (
+                            <ResponsiveContainer width="100%" height={420}>
+                                <LineChart data={chartData}>
+                                    <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
+                                    <XAxis
+                                        dataKey="date"
+                                        tick={{ fill: "#94a3b8", fontSize: 11 }}
+                                        tickFormatter={(v) => v.slice(0, 7)}
+                                        interval="preserveStartEnd"
                                     />
-                                ))}
-                            </LineChart>
-                        </ResponsiveContainer>
+                                    <YAxis
+                                        tick={{ fill: "#94a3b8", fontSize: 11 }}
+                                        tickFormatter={(v) => `$${v}`}
+                                        width={65}
+                                    />
+                                    <Tooltip
+                                        contentStyle={{ background: "#1e293b", border: "1px solid #334155", borderRadius: 8 }}
+                                        labelStyle={{ color: "#cbd5e1" }}
+                                        formatter={(v, name) => [`$${Number(v).toFixed(2)}`, name]}
+                                    />
+                                    <Legend wrapperStyle={{ color: "#94a3b8" }} />
+                                    {activeTickers.map((t) => (
+                                        <Line
+                                            key={t}
+                                            type="monotone"
+                                            dataKey={t}
+                                            stroke={COLORS[t] ?? "#94a3b8"}
+                                            dot={false}
+                                            strokeWidth={1.8}
+                                            connectNulls
+                                        />
+                                    ))}
+                                </LineChart>
+                            </ResponsiveContainer>
+                        )}
+                    </div>
+
+                    {/* Karty spółek — klikalne, służą jako selector */}
+                    {periodStats.length > 0 && (
+                        <div className="space-y-2">
+                            <div className="flex items-center gap-2">
+                                <span className="text-[10px] font-bold uppercase tracking-widest text-slate-500">
+                                    Spółki ({selectedTickers.size}/{allTickers.length})
+                                </span>
+                                <button onClick={selectAll} className="text-[10px] text-indigo-400 hover:text-indigo-300 font-bold">
+                                    Wszystkie
+                                </button>
+                                <span className="text-slate-700">·</span>
+                                <button onClick={clearAll} className="text-[10px] text-slate-500 hover:text-slate-400 font-bold">
+                                    Wyczyść
+                                </button>
+                            </div>
+
+                            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
+                                {periodStats.map(({ ticker, pct, startP, endP }) => {
+                                    const color  = COLORS[ticker] ?? "#94a3b8";
+                                    const active = selectedTickers.has(ticker);
+                                    const up     = pct !== null && pct > 0;
+                                    const down   = pct !== null && pct < 0;
+                                    return (
+                                        <button
+                                            key={ticker}
+                                            onClick={() => toggleTicker(ticker)}
+                                            className={`text-left rounded-xl p-3 flex flex-col gap-1 border transition-all ${
+                                                active
+                                                    ? "bg-slate-800 border-slate-600 shadow-sm"
+                                                    : "bg-slate-800/30 border-slate-800 opacity-40 hover:opacity-60"
+                                            }`}
+                                            style={active ? { borderLeftColor: color, borderLeftWidth: 3 } : {}}
+                                        >
+                                            <div className="flex items-center justify-between">
+                                                <span className="text-xs font-bold font-mono" style={{ color: active ? color : "#64748b" }}>
+                                                    {ticker}
+                                                </span>
+                                                {active && pct !== null && (
+                                                    up   ? <TrendingUp  size={13} className="text-emerald-400" />
+                                                    : down ? <TrendingDown size={13} className="text-red-400" />
+                                                    : <Minus size={13} className="text-slate-500" />
+                                                )}
+                                            </div>
+                                            <div className={`text-base font-bold ${
+                                                !active ? "text-slate-600" :
+                                                up ? "text-emerald-400" : down ? "text-red-400" : "text-slate-400"
+                                            }`}>
+                                                {pct !== null ? fmtPct(pct) : "—"}
+                                            </div>
+                                            <div className="text-[10px] text-slate-500 font-mono">
+                                                {startP != null ? fmt(startP) : "—"} → {endP != null ? fmt(endP) : "—"}
+                                            </div>
+                                        </button>
+                                    );
+                                })}
+                            </div>
+                        </div>
                     )}
-                </div>
+                </>
             )}
         </div>
     );
