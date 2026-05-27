@@ -98,8 +98,8 @@ def chat_with_agent(chat_request: ChatRequest):
                 "content": json.dumps(result, ensure_ascii=False)
             })
 
-message = "Jakie są dane finansowe tej spółki?"
-chat_request = ChatRequest(messages=[message], history=[], context=ChatContext(page="https://www.gpw.pl/spolka/Apple", tickers=["AAPL"]))
+message = "Która spółka ma większe przychody google czy apple?"
+chat_request = ChatRequest(messages=[message], history=[], context=ChatContext(page="https://www.gpw.pl/spolka/Apple", tickers=["AAPL","GOOG"]))
 tokens = chat_with_agent(chat_request)
 for token in tokens:
     print(token,flush=True,end="")

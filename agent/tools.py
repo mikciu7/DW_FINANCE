@@ -1,3 +1,5 @@
+import sys, os
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from backend.services.edgar_service import get_financials, get_latest_financial_date
 from backend.services.feature_service import get_features, get_latest_features
 from backend.services.price_service import get_prices, get_latest_price_date
