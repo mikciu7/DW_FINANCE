@@ -5,7 +5,7 @@ from openai import OpenAI
 from dotenv import load_dotenv
 load_dotenv()
 from backend.services.tools import TOOL_MAPPING, tools
-from tools import TOOL_MAPPING, tools
+
 
 class ChatMessage(BaseModel):
     role: str
