@@ -1,4 +1,5 @@
 import { useState, lazy, Suspense } from "react";
+import ChatWidget from "./components/ChatWidget";
 
 // Zamiana standardowych importów na Lazy Imports
 const Overview = lazy(() => import("./pages/Overview"));
@@ -65,6 +66,8 @@ export default function App() {
                     {page === "agent" && <Agent />}
                 </Suspense>
             </main>
+
+            <ChatWidget currentPage={page} />
         </div>
     );
 }
