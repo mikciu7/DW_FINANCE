@@ -33,7 +33,15 @@ export default function ChatWidget({ currentPage, tickers = [] }: ChatWidgetProp
     setInput("");
     setMessages((prev) => [...prev, { role: "user", content: userMessage }]);
     setIsLoading(true);
-
+    const payload = {
+  message: userMessage,
+  history: messages,
+  context: {
+    page: currentPage,
+    tickers: tickers,
+  },
+};
+console.log("[ChatWidget] sending to backend:", payload);
     try {
       const response = await fetch("/api/agent/chat", {
         method: "POST",
