@@ -16,7 +16,7 @@ class ChatContext(BaseModel):
     tickers: list[str]
 
 class ChatRequest(BaseModel):
-    messages: list[str]
+    messages: str
     history: list[ChatMessage] = []
     context: ChatContext
 
@@ -38,7 +38,7 @@ def chat_with_agent(chat_request: ChatRequest):
     messages = (
         [{"role": "system", "content": SYSTEM_PROMPT}]
         + [m.model_dump() for m in chat_request.history]
-        + [{"role": "user", "content": chat_request.messages[0]}]
+        + [{"role": "user", "content": chat_request.messages}]
         + [{"role": "user", "content": chat_request.context.page}]
     )
 
