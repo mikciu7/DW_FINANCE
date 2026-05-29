@@ -21,10 +21,17 @@ async def chat(req: ChatRequest):
         import asyncio
         loop = asyncio.get_event_loop()
         gen = chat_with_agent(req)
-        while True:
+        _DONE = object()
+
+        def _next():
             try:
-                token = await loop.run_in_executor(None, next, gen)
-                yield f"data: {token}\n\n"
+                return next(gen)
             except StopIteration:
+                return _DONE
+
+        while True:
+            token = await loop.run_in_executor(None, _next)
+            if token is _DONE:
                 break
+            yield f"data: {token}\n\n"
     return StreamingResponse(generate(), media_type="text/event-stream", headers={"X-Accel-Buffering": "no", "Cache-Control": "no-cache"})
