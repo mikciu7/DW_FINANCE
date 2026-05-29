@@ -16,6 +16,7 @@ async def stocks(tickers: list[str] = Query(default=[])):
 
 @router.post("/chat")
 async def chat(req: ChatRequest):
+    print("Received chat request:", req)
     def generate():
         for token in chat_with_agent(req):
             yield f"data: {token}\n\n"
