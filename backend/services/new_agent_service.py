@@ -35,11 +35,15 @@ def _get_client():
     )
 
 def chat_with_agent(chat_request: ChatRequest):
+    ctx = chat_request.context
+    user_content = chat_request.message
+    if ctx.tickers:
+        user_content = f"[Zaznaczone spółki: {', '.join(ctx.tickers)}]\n{user_content}"
+
     messages = (
         [{"role": "system", "content": SYSTEM_PROMPT}]
         + [m.model_dump() for m in chat_request.history]
-        + [{"role": "user", "content": chat_request.message}]
-        + [{"role": "user", "content": chat_request.context.page}]
+        + [{"role": "user", "content": user_content}]
     )
 
     client = _get_client()
