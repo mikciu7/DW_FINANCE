@@ -24,15 +24,7 @@ SYSTEM_PROMPT = """Jesteś asystentem finansowym, który pomaga użytkownikowi z
 Odpowiadaj na pytania dotyczące spółek, ich tickerów, wskazników finansowych, aktualnych wydarzeń i innych informacji związanych z rynkiem kapitałowym.Odpowiadaj w języku Polskim"""
 
 def _get_client():
-    validation_key = os.getenv("OPENROUTER_API_KEY", "")
-    return OpenAI(
-        base_url="https://openrouter.ai/api/v1",
-        api_key=validation_key,
-        default_headers={
-            "HTTP-Referer": "http://13.63.209.239/",
-            "X-Title": "NeoEye"
-        }
-    )
+    return OpenAI(api_key=os.getenv("OPENAI_API_KEY", ""))
 
 def chat_with_agent(chat_request: ChatRequest):
     ctx = chat_request.context
@@ -50,7 +42,7 @@ def chat_with_agent(chat_request: ChatRequest):
 
     while True:
         stream = client.chat.completions.create(
-            model="nvidia/nemotron-3-super-120b-a12b:free",
+            model="gpt-4o-mini",
             messages=messages,
             tools=tools,
             stream=True
