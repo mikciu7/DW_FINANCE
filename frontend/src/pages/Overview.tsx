@@ -26,11 +26,15 @@ type GroupedData = { date: string; [ticker: string]: number | string };
 const fmt   = (v: number) => `$${v.toFixed(2)}`;
 const fmtPct = (v: number) => `${v >= 0 ? "+" : ""}${v.toFixed(2)}%`;
 
-export default function Overview() {
-    const [rows, setRows]                   = useState<PriceRow[]>([]);
-    const [loading, setLoading]             = useState(true);
-    const [dateRange, setDateRange]         = useState({ start: "", end: "" });
-    const [selectedTickers, setSelected]    = useState<Set<string>>(new Set());
+interface OverviewProps {
+    selectedTickers: Set<string>;
+    onSelectedChange: (s: Set<string>) => void;
+}
+
+export default function Overview({ selectedTickers, onSelectedChange: setSelected }: OverviewProps) {
+    const [rows, setRows]         = useState<PriceRow[]>([]);
+    const [loading, setLoading]   = useState(true);
+    const [dateRange, setDateRange] = useState({ start: "", end: "" });
 
     useEffect(() => {
         fetchPrices()
@@ -65,11 +69,9 @@ export default function Overview() {
     }, [allTickers]);
 
     const toggleTicker = (t: string) => {
-        setSelected((prev) => {
-            const next = new Set(prev);
-            next.has(t) ? next.delete(t) : next.add(t);
-            return next;
-        });
+        const next = new Set(selectedTickers);
+        next.has(t) ? next.delete(t) : next.add(t);
+        setSelected(next);
     };
 
     const selectAll   = () => setSelected(new Set(allTickers));

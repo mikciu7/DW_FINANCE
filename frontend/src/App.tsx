@@ -27,6 +27,7 @@ const PageLoader = () => (
 
 export default function App() {
     const [page, setPage] = useState("overview");
+    const [selectedTickers, setSelectedTickers] = useState<Set<string>>(new Set());
 
     return (
         <div className="min-h-screen bg-slate-900 text-slate-100">
@@ -58,7 +59,7 @@ export default function App() {
             <main className="w-full">
                 {/* Suspense dla lazy components*/}
                 <Suspense fallback={<PageLoader />}>
-                    {page === "overview" && <Overview />}
+                    {page === "overview" && <Overview selectedTickers={selectedTickers} onSelectedChange={setSelectedTickers} />}
                     {page === "financials" && <Financials />}
                     {page === "features" && <Features />}
                     {page === "model" && <Model />}
@@ -67,7 +68,7 @@ export default function App() {
                 </Suspense>
             </main>
 
-            <ChatWidget currentPage={page} />
+            <ChatWidget currentPage={page} tickers={[...selectedTickers]} />
         </div>
     );
 }
