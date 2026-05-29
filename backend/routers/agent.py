@@ -17,7 +17,14 @@ async def stocks(tickers: list[str] = Query(default=[])):
 @router.post("/chat")
 async def chat(req: ChatRequest):
     print("Received chat request:", req)
-    def generate():
-        for token in chat_with_agent(req):
-            yield f"data: {token}\n\n"
-    return StreamingResponse(generate(), media_type="text/event-stream")
+    async def generate():
+        import asyncio
+        loop = asyncio.get_event_loop()
+        gen = chat_with_agent(req)
+        while True:
+            try:
+                token = await loop.run_in_executor(None, next, gen)
+                yield f"data: {token}\n\n"
+            except StopIteration:
+                break
+    return StreamingResponse(generate(), media_type="text/event-stream", headers={"X-Accel-Buffering": "no", "Cache-Control": "no-cache"})

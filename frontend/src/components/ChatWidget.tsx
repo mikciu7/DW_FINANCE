@@ -74,6 +74,7 @@ console.log("[ChatWidget] sending to backend:", payload);
         if (done) break;
 
         const chunk = decoder.decode(value, { stream: true });
+        console.log("[ChatWidget] raw chunk:", JSON.stringify(chunk));
         const lines = chunk.split("\n");
 
         for (const line of lines) {
