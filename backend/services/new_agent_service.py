@@ -13,24 +13,43 @@ class ChatMessage(BaseModel):
 
 class ChatContext(BaseModel):
     page: str
-    tickers: list[str]
+    tickers: list[str] = []
+    metric: str | None = None
+    metric_label: str | None = None
+    tab: str | None = None
+    date_range: dict | None = None
 
 class ChatRequest(BaseModel):
     message: str
     history: list[ChatMessage] = []
     context: ChatContext
 
-SYSTEM_PROMPT = """Jesteś asystentem finansowym, który pomaga użytkownikowi znaleźć informacje o spółkach giełdowych.
-Odpowiadaj na pytania dotyczące spółek, ich tickerów, wskazników finansowych, aktualnych wydarzeń i innych informacji związanych z rynkiem kapitałowym.Odpowiadaj w języku Polskim"""
+SYSTEM_PROMPT = """Jesteś asystentem finansowym aplikacji NeoEye, który pomaga użytkownikowi analizować dane giełdowe.
+Masz dostęp do narzędzi pozwalających pobierać dane finansowe, ceny akcji i wskaźniki z bazy danych.
+Kiedy użytkownik pyta o dane, ZAWSZE użyj odpowiedniego narzędzia zamiast odpowiadać z pamięci.
+Odpowiadaj zwięźle i konkretnie, w języku polskim."""
+
+def _build_context_prefix(ctx: ChatContext) -> str:
+    lines = [f"Użytkownik aktualnie przegląda zakładkę: **{ctx.page}**."]
+    if ctx.tickers:
+        lines.append(f"Wybrane spółki: {', '.join(ctx.tickers)}.")
+    if ctx.tab:
+        lines.append(f"Aktywna sekcja: {ctx.tab}.")
+    if ctx.metric_label and ctx.metric:
+        lines.append(f"Wybrany wskaźnik na wykresie: {ctx.metric_label} ({ctx.metric}).")
+    elif ctx.metric:
+        lines.append(f"Wybrany wskaźnik na wykresie: {ctx.metric}.")
+    if ctx.date_range and ctx.date_range.get("start"):
+        lines.append(f"Zakres dat: {ctx.date_range['start']} – {ctx.date_range.get('end', '?')}.")
+    return "\n".join(lines)
 
 def _get_client():
     return OpenAI(api_key=os.getenv("OPENAI_API_KEY", ""))
 
 def chat_with_agent(chat_request: ChatRequest):
     ctx = chat_request.context
-    user_content = chat_request.message
-    if ctx.tickers:
-        user_content = f"[Zaznaczone spółki: {', '.join(ctx.tickers)}]\n{user_content}"
+    ctx_prefix = _build_context_prefix(ctx)
+    user_content = f"[KONTEKST WIDOKU]\n{ctx_prefix}\n\n[PYTANIE UŻYTKOWNIKA]\n{chat_request.message}"
 
     messages = (
         [{"role": "system", "content": SYSTEM_PROMPT}]

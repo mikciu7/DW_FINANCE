@@ -50,30 +50,37 @@ def fetch_and_store_prices(tickers: list[str] = TICKERS, full_history: bool = Fa
             print(f"[price_service] Error fetching {ticker}: {e}")
 
 
-def get_prices(ticker: str | None = None) -> list[dict]:
+def get_prices(
+    ticker: str | None = None,
+    start_date: str | None = None,
+    end_date: str | None = None,
+) -> list[dict]:
+    conditions = []
+    params: list = []
+    if ticker:
+        conditions.append("ticker=%s")
+        params.append(ticker)
+    if start_date:
+        conditions.append("date >= %s")
+        params.append(start_date)
+    if end_date:
+        conditions.append("date <= %s")
+        params.append(end_date)
+
+    where = f"WHERE {' AND '.join(conditions)}" if conditions else ""
+    query = f"SELECT ticker, date, open, high, low, close, volume FROM prices {where} ORDER BY ticker, date"
+
     with get_connection() as conn:
-        # ZMIANA: Używamy RealDictCursor, żeby wyniki zwracały się jako słowniki (jak sqlite3.Row)
         with conn.cursor(cursor_factory=RealDictCursor) as cur:
-            if ticker:
-                # ZMIANA: %s zamiast ?
-                cur.execute(
-                    "SELECT ticker, date, open, high, low, close, volume FROM prices WHERE ticker=%s ORDER BY date",
-                    (ticker,)
-                )
-            else:
-                cur.execute(
-                    "SELECT ticker, date, open, high, low, close, volume FROM prices ORDER BY ticker, date"
-                )
+            cur.execute(query, params)
             rows = cur.fetchall()
-            
-    # Zamieniamy daty z obiektów datetime.date na stringi dla spójności
+
     result = []
     for r in rows:
         row_dict = dict(r)
-        if row_dict['date']:
-            row_dict['date'] = str(row_dict['date'])
+        if row_dict["date"]:
+            row_dict["date"] = str(row_dict["date"])
         result.append(row_dict)
-        
     return result
 
 

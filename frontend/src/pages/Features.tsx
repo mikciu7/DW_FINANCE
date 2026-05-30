@@ -2,6 +2,7 @@ import { useEffect, useState, useMemo, useCallback } from "react";
 import { fetchFeatures } from "../api/client";
 import type { FeatureRow } from "../api/client";
 import { DateRangeBar } from "../components/DateRangeBar";
+import { useViewContext } from "../context/ViewContext";
 import {
     LineChart, Line, XAxis, YAxis, Tooltip,
     ResponsiveContainer, CartesianGrid, Legend,
@@ -120,11 +121,22 @@ const FEATURE_GROUPS = [
 ];
 
 export default function Features() {
+    const { setView } = useViewContext();
     const [selectedTickers, setSelected] = useState<Set<string>>(new Set(["AAPL"]));
     const [feature, setFeature]          = useState("revenue_acceleration");
     const [tickerData, setTickerData]    = useState<Map<string, FeatureRow[]>>(new Map());
     const [fetchingSet, setFetchingSet]  = useState<Set<string>>(new Set(["AAPL"]));
     const [dateRange, setDateRange]      = useState({ start: "", end: "" });
+
+    useEffect(() => {
+        setView({
+            page: "Features",
+            tickers: TICKERS.filter((t) => selectedTickers.has(t)),
+            metric: feature,
+            metricLabel: FEATURE_DESCRIPTIONS[feature] ? feature : feature,
+            dateRange: dateRange.start ? dateRange : undefined,
+        });
+    }, [selectedTickers, feature, dateRange]);
 
     const activeTickers = TICKERS.filter((t) => selectedTickers.has(t));
 

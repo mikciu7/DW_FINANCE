@@ -2,6 +2,7 @@ import { useEffect, useState, useMemo, useCallback } from "react";
 import { fetchEdgar } from "../api/client";
 import type { FinancialRow } from "../api/client";
 import { DateRangeBar } from "../components/DateRangeBar";
+import { useViewContext } from "../context/ViewContext";
 import {
     LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid,
     ReferenceLine, Legend,
@@ -69,6 +70,7 @@ const fmt = (v: number | null) => {
 };
 
 export default function Financials() {
+    const { setView } = useViewContext();
     const [selectedTickers, setSelected] = useState<Set<string>>(new Set(["AAPL"]));
     const [primaryTicker, setPrimary]    = useState("AAPL");
     const [tab, setTab]                  = useState("income");
@@ -76,6 +78,21 @@ export default function Financials() {
     const [tickerData, setTickerData]    = useState<Map<string, FinancialRow[]>>(new Map());
     const [fetchingSet, setFetchingSet]  = useState<Set<string>>(new Set(["AAPL"]));
     const [dateRange, setDateRange]      = useState({ start: "", end: "" });
+
+    // Synchronizuj stan strony z ViewContext (dla ChatWidget)
+    useEffect(() => {
+        const allCols = [...INCOME_COLS, ...BALANCE_COLS, ...CASHFLOW_COLS];
+        const metricLabel = allCols.find((c) => c.key === chartMetric)?.label ?? chartMetric;
+        const tabLabel = TABS.find((t) => t.id === tab)?.label ?? tab;
+        setView({
+            page: "Raporty Finansowe",
+            tickers: TICKERS.filter((t) => selectedTickers.has(t)),
+            metric: chartMetric,
+            metricLabel,
+            tab: tabLabel,
+            dateRange: dateRange.start ? dateRange : undefined,
+        });
+    }, [selectedTickers, chartMetric, tab, dateRange]);
 
     const activeTickers = TICKERS.filter((t) => selectedTickers.has(t));
 

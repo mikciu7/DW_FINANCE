@@ -8,13 +8,26 @@ tools = [
         "type": "function",
         "function": {
             "name": "get_financials",
-            "description": "Pobiera dane finansowe spółki (bilans, rachunek wyników, przepływy pieniężne) z bazy danych.",
+            "description": "Pobiera dane finansowe spółki (bilans, rachunek wyników, przepływy pieniężne) z bazy danych. Używaj columns i dat żeby ograniczyć ilość danych.",
             "parameters": {
                 "type": "object",
                 "properties": {
                     "ticker": {
                         "type": "string",
-                        "description": "Symbol giełdowy spółki, np. AAPL, MSFT. Jeśli nie podano, zwraca dane wszystkich spółek."
+                        "description": "Symbol giełdowy spółki, np. AAPL, MSFT."
+                    },
+                    "columns": {
+                        "type": "array",
+                        "items": {"type": "string"},
+                        "description": "Lista kolumn do zwrócenia, np. ['revenue', 'net_income']. Pomiń aby zwrócić wszystkie."
+                    },
+                    "start_date": {
+                        "type": "string",
+                        "description": "Data początkowa w formacie YYYY-MM-DD."
+                    },
+                    "end_date": {
+                        "type": "string",
+                        "description": "Data końcowa w formacie YYYY-MM-DD."
                     }
                 },
                 "required": []
@@ -42,13 +55,26 @@ tools = [
         "type": "function",
         "function": {
             "name": "get_features",
-            "description": "Pobiera wyliczone wskaźniki finansowe i cechy modelu ML dla spółki (marże, wzrosty, momentum, P/E itp.).",
+            "description": "Pobiera wyliczone wskaźniki finansowe i cechy modelu ML dla spółki (marże, wzrosty, momentum, P/E itp.). Używaj columns i dat żeby ograniczyć ilość danych.",
             "parameters": {
                 "type": "object",
                 "properties": {
                     "ticker": {
                         "type": "string",
-                        "description": "Symbol giełdowy spółki, np. AAPL. Jeśli nie podano, zwraca dane wszystkich spółek."
+                        "description": "Symbol giełdowy spółki, np. AAPL."
+                    },
+                    "columns": {
+                        "type": "array",
+                        "items": {"type": "string"},
+                        "description": "Lista wskaźników do zwrócenia, np. ['profit_margin', 'pe_ratio']. Pomiń aby zwrócić wszystkie."
+                    },
+                    "start_date": {
+                        "type": "string",
+                        "description": "Data początkowa w formacie YYYY-MM-DD."
+                    },
+                    "end_date": {
+                        "type": "string",
+                        "description": "Data końcowa w formacie YYYY-MM-DD."
                     }
                 },
                 "required": []
@@ -76,13 +102,21 @@ tools = [
         "type": "function",
         "function": {
             "name": "get_prices",
-            "description": "Pobiera historię cen akcji (open, high, low, close, volume) dla danej spółki.",
+            "description": "Pobiera historię cen akcji (open, high, low, close, volume) dla danej spółki. ZAWSZE podawaj start_date i end_date — bez filtrowania zwróci tysiące wierszy dziennych cen.",
             "parameters": {
                 "type": "object",
                 "properties": {
                     "ticker": {
                         "type": "string",
-                        "description": "Symbol giełdowy spółki, np. AAPL. Jeśli nie podano, zwraca dane wszystkich spółek."
+                        "description": "Symbol giełdowy spółki, np. AAPL."
+                    },
+                    "start_date": {
+                        "type": "string",
+                        "description": "Data początkowa w formacie YYYY-MM-DD. Wymagana dla ograniczenia rozmiaru odpowiedzi."
+                    },
+                    "end_date": {
+                        "type": "string",
+                        "description": "Data końcowa w formacie YYYY-MM-DD. Wymagana dla ograniczenia rozmiaru odpowiedzi."
                     }
                 },
                 "required": []

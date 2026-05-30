@@ -3,6 +3,7 @@ import { TrendingUp, TrendingDown, Minus } from "lucide-react";
 import { fetchPrices } from "../api/client";
 import type { PriceRow } from "../api/client";
 import { DateRangeBar } from "../components/DateRangeBar";
+import { useViewContext } from "../context/ViewContext";
 import {
     LineChart, Line, XAxis, YAxis, Tooltip, Legend,
     ResponsiveContainer, CartesianGrid,
@@ -32,9 +33,18 @@ interface OverviewProps {
 }
 
 export default function Overview({ selectedTickers, onSelectedChange: setSelected }: OverviewProps) {
+    const { setView } = useViewContext();
     const [rows, setRows]         = useState<PriceRow[]>([]);
     const [loading, setLoading]   = useState(true);
     const [dateRange, setDateRange] = useState({ start: "", end: "" });
+
+    useEffect(() => {
+        setView({
+            page: "Ceny Akcji",
+            tickers: [...selectedTickers],
+            dateRange: dateRange.start ? dateRange : undefined,
+        });
+    }, [selectedTickers, dateRange]);
 
     useEffect(() => {
         fetchPrices()

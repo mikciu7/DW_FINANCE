@@ -240,29 +240,42 @@ def run_feature_pipeline(tickers: list[str] = TICKERS):
             print(f"[feature_service] No data for {ticker}")
 
 
-def get_features(ticker: str | None = None) -> list[dict]:
-    cols = ", ".join(["ticker", "date", "close_price"] + FEATURE_COLS)
+def get_features(
+    ticker: str | None = None,
+    columns: list[str] | None = None,
+    start_date: str | None = None,
+    end_date: str | None = None,
+) -> list[dict]:
+    safe_cols = [c for c in (columns or []) if c in FEATURE_COLS]
+    select_cols = ["ticker", "date", "close_price"] + (safe_cols if safe_cols else FEATURE_COLS)
+    col_str = ", ".join(select_cols)
+
+    conditions = []
+    params: list = []
+    if ticker:
+        conditions.append("ticker=%s")
+        params.append(ticker)
+    if start_date:
+        conditions.append("date >= %s")
+        params.append(start_date)
+    if end_date:
+        conditions.append("date <= %s")
+        params.append(end_date)
+
+    where = f"WHERE {' AND '.join(conditions)}" if conditions else ""
+    query = f"SELECT {col_str} FROM features {where} ORDER BY ticker, date"
+
     with get_connection() as conn:
         with conn.cursor(cursor_factory=RealDictCursor) as cur:
-            if ticker:
-                # ZMIANA: %s zamiast ?
-                cur.execute(
-                    f"SELECT {cols} FROM features WHERE ticker=%s ORDER BY date", (ticker,)
-                )
-            else:
-                cur.execute(
-                    f"SELECT {cols} FROM features ORDER BY ticker, date"
-                )
+            cur.execute(query, params)
             rows = cur.fetchall()
-            
-    # ZMIANA: Konwersja daty na string
+
     result = []
     for r in rows:
         row_dict = dict(r)
-        if row_dict.get('date'):
-            row_dict['date'] = str(row_dict['date'])
+        if row_dict.get("date"):
+            row_dict["date"] = str(row_dict["date"])
         result.append(row_dict)
-        
     return result
 
 

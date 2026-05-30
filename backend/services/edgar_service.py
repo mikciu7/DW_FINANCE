@@ -134,28 +134,42 @@ def fetch_new_filings(ticker: str, since_date: str) -> bool:
         return False
 
 
-def get_financials(ticker: str | None = None) -> list[dict]:
-    cols = ", ".join(["ticker", "date"] + CATS)
+def get_financials(
+    ticker: str | None = None,
+    columns: list[str] | None = None,
+    start_date: str | None = None,
+    end_date: str | None = None,
+) -> list[dict]:
+    safe_cols = [c for c in (columns or []) if c in CATS]
+    select_cols = ["ticker", "date"] + (safe_cols if safe_cols else CATS)
+    col_str = ", ".join(select_cols)
+
+    conditions = []
+    params: list = []
+    if ticker:
+        conditions.append("ticker=%s")
+        params.append(ticker)
+    if start_date:
+        conditions.append("date >= %s")
+        params.append(start_date)
+    if end_date:
+        conditions.append("date <= %s")
+        params.append(end_date)
+
+    where = f"WHERE {' AND '.join(conditions)}" if conditions else ""
+    query = f"SELECT {col_str} FROM financials {where} ORDER BY ticker, date"
+
     with get_connection() as conn:
         with conn.cursor(cursor_factory=RealDictCursor) as cur:
-            if ticker:
-                cur.execute(
-                    f"SELECT {cols} FROM financials WHERE ticker=%s ORDER BY date", (ticker,)
-                )
-            else:
-                cur.execute(
-                    f"SELECT {cols} FROM financials ORDER BY ticker, date"
-                )
+            cur.execute(query, params)
             rows = cur.fetchall()
-            
-    # Formatowanie daty jak w price_service
+
     result = []
     for r in rows:
         row_dict = dict(r)
-        if row_dict.get('date'):
-            row_dict['date'] = str(row_dict['date'])
+        if row_dict.get("date"):
+            row_dict["date"] = str(row_dict["date"])
         result.append(row_dict)
-        
     return result
 
 
