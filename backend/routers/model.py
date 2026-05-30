@@ -1,8 +1,10 @@
-from fastapi import APIRouter, HTTPException
+﻿from fastapi import APIRouter, HTTPException
+from fastapi import Depends
+from backend.middleware.auth_middleware import require_auth
 from backend.database import TICKERS
 from backend.services.ml_service import get_model_metrics, get_feature_importance, predict
 
-router = APIRouter(prefix="/api/model", tags=["model"])
+router = APIRouter(prefix="/api/model", tags=["model"], dependencies=[Depends(require_auth)])
 
 
 @router.get("/metrics")

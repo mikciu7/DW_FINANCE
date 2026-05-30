@@ -1,13 +1,15 @@
-from fastapi import APIRouter, Query
+﻿from fastapi import APIRouter, Query
+from fastapi import Depends
+from backend.middleware.auth_middleware import require_auth
 from backend.database import get_connection
 from psycopg2.extras import RealDictCursor
 from typing import Optional
 
-router = APIRouter(prefix="/api/macro", tags=["macro"])
+router = APIRouter(prefix="/api/macro", tags=["macro"], dependencies=[Depends(require_auth)])
 
 @router.get("/file-dates")
 def get_file_dates():
-    # Zwraca liste unikalnych dat plików (wersji danych) dla dropdowna w React
+    # Zwraca liste unikalnych dat plikĂłw (wersji danych) dla dropdowna w React
     # w celu tego wybierania np. danych backupowych
     with get_connection() as conn:
         with conn.cursor() as cur:

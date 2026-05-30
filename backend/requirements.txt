@@ -92,3 +92,10 @@ websockets==15.0.1
 yfinance==1.0
 openai==1.61.0
 feedparser==6.0.12
+passlib[argon2]
+pyotp
+qrcode[pil]
+cryptography
+slowapi
+
+pydantic[email]

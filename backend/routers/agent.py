@@ -1,8 +1,10 @@
-from fastapi import APIRouter, Query
+﻿from fastapi import APIRouter, Query, Request
+from fastapi import Depends
+from backend.middleware.auth_middleware import require_auth
 from backend.services.agent_service import get_geopolitics, get_stocks
 from fastapi.responses import StreamingResponse
 from backend.services.new_agent_service import *
-router = APIRouter(prefix="/api/agent", tags=["agent"])
+router = APIRouter(prefix="/api/agent", tags=["agent"], dependencies=[Depends(require_auth)])
 
 @router.get("/geopolitics")
 async def geopolitics():
@@ -15,12 +17,12 @@ async def stocks(tickers: list[str] = Query(default=[])):
     return {"data": data}
 
 @router.post("/chat")
-async def chat(req: ChatRequest):
-    print("Received chat request:", req)
+async def chat(req: ChatRequest, request: Request):
+    user_id = str(request.state.user["id"]) if hasattr(request.state, "user") else None
     async def generate():
         import asyncio
         loop = asyncio.get_event_loop()
-        gen = chat_with_agent(req)
+        gen = chat_with_agent(req, user_id=user_id)
         _DONE = object()
 
         def _next():
