@@ -60,6 +60,11 @@ def chat_with_agent(chat_request: ChatRequest, user_id: str | None = None):
     ctx_prefix = _build_context_prefix(ctx)
     user_content = f"[KONTEKST WIDOKU]\n{ctx_prefix}\n\n[PYTANIE UĹ»YTKOWNIKA]\n{chat_request.message}"
 
+    print("\n" + "="*50)
+    print("🤖 [DEBUG AGENTA] 1. KONTEKST WYSYŁANY DO MODELU:")
+    print(user_content)
+    print("="*50 + "\n")
+
     messages = (
         [{"role": "system", "content": SYSTEM_PROMPT}]
         + [m.model_dump() for m in chat_request.history]
@@ -122,8 +127,24 @@ def chat_with_agent(chat_request: ChatRequest, user_id: str | None = None):
         # wykonaj toole i dodaj wyniki
         for tc in tool_calls_map.values():
             args = json.loads(tc["arguments"])
-            print(tc)
-            result = TOOL_MAPPING[tc["name"]](**args)
+            print("\n" + "="*50)
+            print(f" [DEBUG AGENTA] 2. MODEL WYWOŁUJE NARZĘDZIE: {tc['name']}")
+            print(f"   ARGUMENTY Z LLM: {args}")
+
+            try:
+                result = TOOL_MAPPING[tc["name"]](**args)
+
+                # Sprawdzamy ile danych wróciło z bazy
+                ile_rekordow = len(result) if isinstance(result, list) else "Nie lista"
+                print(f"   WYNIK Z BAZY (liczba rekordów): {ile_rekordow}")
+                if ile_rekordow == 0:
+                    print("   ⚠️ UWAGA: Baza zwróciła puste dane! Model nie będzie miał z czego czytać.")
+            except Exception as e:
+                print(f"   ❌ BŁĄD PODCZAS WYKONYWANIA NARZĘDZIA: {e}")
+                result = {"error": str(e)}
+
+            print("="*50 + "\n")
+
             messages.append({
                 "role": "tool",
                 "tool_call_id": tc["id"],

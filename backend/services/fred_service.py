@@ -75,6 +75,14 @@ def get_macro_data(file_date: str, start_date: Optional[str] = None, end_date: O
     Pobiera dane z tabeli macro_data dla podanego snapshotu (file_date).
     Opcjonalnie filtruje po zakresie dat.
     """
+
+
+    print(f"[DEBUG BAZY] Wywołano get_macro_data z parametrami:")
+    print(f"-> file_date: {file_date}")
+    print(f"-> start_date: {start_date}")
+    print(f"-> end_date: {end_date}")
+
+
     # Budujemy dynamiczne zapytanie
     query = "SELECT date, data_type, file_date, " + ", ".join(MACRO_COLS) + " FROM macro_data WHERE file_date = %s"
     params = [file_date]
