@@ -1,6 +1,10 @@
 import os
 import re
+from typing import Optional
+
 import pandas as pd
+from psycopg2.extras import RealDictCursor
+
 from backend.database import get_connection, MACRO_COLS
 
 
@@ -65,6 +69,42 @@ def get_available_file_dates():
         with conn.cursor() as cur:
             cur.execute("SELECT DISTINCT file_date FROM macro_data ORDER BY file_date DESC")
             return [str(r[0]) for r in cur.fetchall()]
+
+def get_macro_data(file_date: str, start_date: Optional[str] = None, end_date: Optional[str] = None) -> list[dict]:
+    """
+    Pobiera dane z tabeli macro_data dla podanego snapshotu (file_date).
+    Opcjonalnie filtruje po zakresie dat.
+    """
+    # Budujemy dynamiczne zapytanie
+    query = "SELECT date, data_type, file_date, " + ", ".join(MACRO_COLS) + " FROM macro_data WHERE file_date = %s"
+    params = [file_date]
+
+    if start_date:
+        query += " AND date >= %s"
+        params.append(start_date)
+    if end_date:
+        query += " AND date <= %s"
+        params.append(end_date)
+
+    query += " ORDER BY date ASC"
+
+    with get_connection() as conn:
+        with conn.cursor(cursor_factory=RealDictCursor) as cur:
+            cur.execute(query, params)
+            rows = cur.fetchall()
+
+    # Formatowanie daty dla spójności
+    result = []
+    for r in rows:
+        row_dict = dict(r)
+        if row_dict.get('date'):
+            row_dict['date'] = str(row_dict['date'])
+        if row_dict.get('file_date'):
+            row_dict['file_date'] = str(row_dict['file_date'])
+        result.append(row_dict)
+
+    return result
+
 
 # kod do lambdy
 

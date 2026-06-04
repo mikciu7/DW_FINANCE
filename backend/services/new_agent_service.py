@@ -19,6 +19,7 @@ class ChatContext(BaseModel):
     metric_label: str | None = None
     tab: str | None = None
     date_range: dict | None = None
+    macro_metrics: list[str] = [] # dla kontekstu z zakladka z freda
 
 class ChatRequest(BaseModel):
     message: str
@@ -42,6 +43,9 @@ def _build_context_prefix(ctx: ChatContext) -> str:
         lines.append(f"Wybrany wskaĹşnik na wykresie: {ctx.metric}.")
     if ctx.date_range and ctx.date_range.get("start"):
         lines.append(f"Zakres dat: {ctx.date_range['start']} â€“ {ctx.date_range.get('end', '?')}.")
+    if ctx.macro_metrics:
+        lines.append(f"Wybrane wskaźniki makroekonomiczne: {', '.join(ctx.macro_metrics)}.")
+
     return "\n".join(lines)
 
 def _get_client():

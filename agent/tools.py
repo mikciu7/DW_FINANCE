@@ -3,7 +3,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from backend.services.edgar_service import get_financials, get_latest_financial_date
 from backend.services.feature_service import get_features, get_latest_features
 from backend.services.price_service import get_prices, get_latest_price_date
-from backend.services.fred_service import get_available_file_dates
+from backend.services.fred_service import get_available_file_dates, get_macro_data
 
 tools = [
     {
@@ -120,6 +120,32 @@ tools = [
             }
         }
     },
+    {
+        "type": "function",
+        "function": {
+            "name": "get_macro_data",
+            "description": "Pobiera historyczne wartości wskaźników makroekonomicznych z bazy danych. Wymaga podania 'file_date' (użyj get_available_file_dates jeśli go nie znasz).",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "file_date": {
+                        "type": "string",
+                        "description": "Data snapshotu danych (np. '2024-05-15'). Wymagane."
+                    },
+                    "start_date": {
+                        "type": "string",
+                        "description": "Data początkowa (np. '2020-01-01'). Opcjonalne, ale zalecane."
+                    },
+                    "end_date": {
+                        "type": "string",
+                        "description": "Data końcowa (np. '2023-12-31'). Opcjonalne."
+                    }
+                },
+                "required": ["file_date"]
+            }
+        }
+    },
+
 ]
 
 TOOL_MAPPING = {

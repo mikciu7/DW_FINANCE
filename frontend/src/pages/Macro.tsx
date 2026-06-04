@@ -2,6 +2,7 @@ import { useEffect, useState, useMemo } from 'react';
 import {Calendar, Filter, BarChart3, Info} from 'lucide-react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 import { fetchMacroFileDates, fetchMacroData, type MacroData } from '../api/client';
+import { useViewContext } from '../context/ViewContext';
 
 // Paleta kolorów dla wielu serii (zgodnie z zasadą spójności)
 const COLORS = ['#6366f1', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6'];
@@ -142,6 +143,8 @@ const useRightAxis = (symbol: string) => {
 
 const Macro = () => {
     const [fileDates, setFileDates] = useState<string[]>([]);
+    // hook kontekstu
+    const { setView } = useViewContext();
     const [selectedFileDate, setSelectedFileDate] = useState<string>('');
     const [data, setData] = useState<MacroData[]>([]);
     // Domyślny klucz również małą literą
@@ -164,6 +167,19 @@ const Macro = () => {
             max: dates[dates.length - 1]
         };
     }, [data]);
+
+    useEffect(() => {
+        // Mapujemy wybrane symbole na ich przyjazne nazwy dla Agenta
+        const labels = selectedMetrics.map(m => MACRO_METADATA[m]?.label || m);
+
+        setView({
+            page: "Zmienne Makroekonomiczne",
+            tickers: [], // W makro nie mamy tickerów spółek
+            metric: selectedMetrics.toString(), // Przekazujemy listę np. ['gdpc1', 'unrate']
+            metricLabel: labels.join(", "), // Przekazujemy czytelne nazwy
+            dateRange: dateRange.start && dateRange.end ? dateRange : undefined, // Slice & Dice
+        });
+    }, [selectedMetrics, dateRange, setView]);
 
     useEffect(() => {
         if (availableRange.min && availableRange.max) {
