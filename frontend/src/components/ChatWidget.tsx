@@ -37,6 +37,7 @@ export default function ChatWidget({ onClose }: Props) {
             metric_label: view.metricLabel,
             tab: view.tab,
             date_range: view.dateRange,
+            fileDate: view.fileDate,
         };
 
         try {
