@@ -235,6 +235,7 @@ def chat_with_agent(chat_request: ChatRequest, user_id: str | None = None):
                 print(f"   WYNIK Z BAZY (liczba rekordów): {ile_rekordow}")
                 if ile_rekordow == 0:
                     print("   ⚠️ UWAGA: Baza zwróciła puste dane! Model nie będzie miał z czego czytać.")
+                print(f"   PEŁNY WYNIK NARZĘDZIA:\n{json.dumps(result, ensure_ascii=False)}\n")
             except Exception as e:
                 print(f"   ❌ BŁĄD PODCZAS WYKONYWANIA NARZĘDZIA: {e}")
                 result = {"error": str(e)}
