@@ -1,7 +1,7 @@
 from backend.services.edgar_service import get_financials, get_latest_financial_date
 from backend.services.feature_service import get_features, get_latest_features
 from backend.services.price_service import get_prices, get_latest_price_date
-from backend.services.fred_service import get_available_file_dates
+from backend.services.fred_service import get_available_file_dates, get_macro_data
 
 tools = [
     {
@@ -152,6 +152,31 @@ tools = [
             }
         }
     },
+    {
+        "type": "function",
+        "function": {
+            "name": "get_macro_data",
+            "description": "Pobiera historyczne wartości wskaźników makroekonomicznych (np. sp500, gdpc1, unrate, dcoilwtico). ZAWSZE używaj tego narzędzia do pytań o widok Zmienne Makroekonomiczne.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "file_date": {
+                        "type": "string",
+                        "description": "Data snapshotu danych (np. '2026-06-01'). Zawsze bierz ją z kontekstu widoku."
+                    },
+                    "start_date": {
+                        "type": "string",
+                        "description": "Data początkowa analizy (opcjonalna)."
+                    },
+                    "end_date": {
+                        "type": "string",
+                        "description": "Data końcowa analizy (opcjonalna)."
+                    }
+                },
+                "required": ["file_date"]
+            }
+        }
+    }
 ]
 
 TOOL_MAPPING = {
@@ -162,4 +187,5 @@ TOOL_MAPPING = {
     "get_prices": get_prices,
     "get_latest_price_date": get_latest_price_date,
     "get_available_file_dates": get_available_file_dates,
+    "get_macro_data": get_macro_data,
 }
