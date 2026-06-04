@@ -1,191 +1,206 @@
-# MED — Stock Financial Report Analyzer & Prediction App
+# NeoEye — Platforma Analizy Giełdowej
 
-Aplikacja webowa do analizy raportów finansowych spółek giełdowych oraz przewidywania 3-miesięcznych zwrotów akcji przy pomocy modelu Random Forest.
-
-## Stack
-
-| Warstwa | Technologie |
-|---|---|
-| Backend | Python · FastAPI · SQLite · APScheduler |
-| ML | scikit-learn (RandomForest) · pandas · numpy |
-| Dane | yfinance (ceny) · EDGAR via edgartools (raporty) |
-| Frontend | React 18 · TypeScript · Vite · Recharts · TailwindCSS |
-| Deploy | AWS EC2 (backend) · AWS S3 + CloudFront (frontend) |
+Aplikacja webowa do analizy fundamentalnej spółek giełdowych z asystentem AI, modelem predykcji ML i danymi makroekonomicznymi.
 
 ---
 
 ## Spółki
 
-`AAPL` · `AMZN` · `GOOG` · `META` · `MSFT`
-
-Dane kwartalne 2010–2025 z raportów 10-Q / 10-K (EDGAR).
+AAPL · AMZN · AVGO · GOOG · META · MSFT · NVDA · ORCL · TSLA · AMD
 
 ---
 
-## Model
+## Funkcjonalności
 
-- **Algorytm:** Random Forest Regressor (200 drzew, max_depth=8)
-- **Target:** zwrot ceny akcji po 90 dniach kalendarzowych (`return_3m`)
-- **Features:** 30 zmiennych (standaryzowane wskaźniki finansowe, momentum cenowy, wskaźniki jakości)
-- **Walidacja:** TimeSeriesSplit (5 foldów) — bez data leakage
-- **Hit Rate kierunku:** ~67% (UP / DOWN)
+### Zakładki
 
----
+| Zakładka | Co zawiera |
+|---|---|
+| **Ceny Akcji** | Historyczne kursy dzienne, porównanie wielu spółek na jednym wykresie, delta % |
+| **Raporty Finansowe** | Dane kwartalne z 10-K/10-Q: P&L, bilans, cash flow — wykres + tabela, multi-select spółek |
+| **Features** | ~60 wyliczonych wskaźników (marże, wzrosty, momentum, P/E, z-score) z opisami po polsku |
+| **Model ML** | Predykcje zwrotów akcji (Random Forest), feature importance, metryki modelu |
+| **Zmienne Makro** | Dane FRED: GDP, inflacja (CPI), stopy procentowe, bezrobocie, S&P500, ceny ropy, kursy walut |
+| **Asystent AI** | Chat z agentem który widzi co aktualnie ogląda użytkownik |
 
-## Struktura projektu
+### Asystent AI
 
-```
-MED/
-├── backend/
-│   ├── main.py               # FastAPI app + APScheduler
-│   ├── database.py           # SQLite schema
-│   ├── scheduler.py          # codzienne odświeżanie danych
-│   ├── init_db.py            # jednorazowa inicjalizacja bazy
-│   ├── requirements.txt
-│   ├── routers/
-│   │   ├── financials.py     # /api/financials/price, /edgar
-│   │   ├── features.py       # /api/financials/features
-│   │   └── model.py          # /api/model/...
-│   └── services/
-│       ├── price_service.py  # yfinance → SQLite
-│       ├── edgar_service.py  # EDGAR → SQLite
-│       ├── feature_service.py # feature engineering (30 cech)
-│       └── ml_service.py     # trening + predykcja
-├── frontend/
-│   ├── src/
-│   │   ├── pages/
-│   │   │   ├── Overview.tsx  # wykresy cen wszystkich spółek
-│   │   │   ├── Financials.tsx # Income / Balance / CashFlow
-│   │   │   ├── Features.tsx  # feature vs cena (dual-axis)
-│   │   │   └── Model.tsx     # predykcja + feature importance
-│   │   └── components/
-│   └── package.json
-├── deploy/
-│   ├── ec2_setup.sh          # bootstrap Ubuntu EC2
-│   └── s3_deploy.sh          # build + sync do S3
-└── data/
-    ├── AAPL_2010_2025.csv    # surowe dane finansowe z EDGAR
-    ├── AMZN_2010_2025.csv
-    └── ...
-```
+- Widzi aktualny kontekst: zakładka, wybrane spółki, wskaźnik, zakres dat
+- Pobiera dane z bazy na żądanie (ceny, finanse, wskaźniki, makro)
+- Czyta pełne raporty 10-K/10-Q z EDGAR (MD&A, business, ryzyka) — pyta o zgodę przed kosztownym wywołaniem
+- Informuje o obcięciu tekstu i oferuje pełną wersję
+- Rozumie że dane finansowe są kwartalne, ceny dzienne
 
----
+### Bezpieczeństwo
 
-## Uruchomienie lokalne
+- Sesje serwerowe w PostgreSQL — natychmiastowy ban = DELETE sesji
+- Hasła: Argon2id (64MB RAM, 3 iteracje)
+- 2FA TOTP obowiązkowe (Google Authenticator / Authy)
+- TOTP secret szyfrowany AES-256-GCM w bazie
+- Rate limiting: 5 prób logowania / 15 min per IP, 3 rejestracje / h per IP
+- IP tracking: max 3 konta per IP
+- Monitoring tokenów LLM: limit miesięczny per user, auto-blokada przy przekroczeniu
 
-### 1. Wymagania
+### Panel Admina
+
+Dostępny **tylko przez SSH tunnel** (nie wystawiony na internet):
 
 ```bash
-cd MED
-python -m venv med_env
-# Windows:
-med_env\Scripts\activate
-# Linux/Mac:
-source med_env/bin/activate
-
-pip install -r backend/requirements.txt
+ssh -L 8080:localhost:8080 -i klucz.pem ubuntu@EC2_IP
+# Potem: http://localhost:8080
 ```
 
-### 2. Inicjalizacja bazy danych (jednorazowo)
-
-```bash
-python -m backend.init_db
-```
-
-Skrypt:
-1. Tworzy schemat SQLite (`backend/med.db`)
-2. Pobiera historię cen z yfinance (2010–dziś)
-3. Wczytuje dane finansowe z CSV (`data/`)
-4. Oblicza 30 cech modelu (feature engineering)
-5. Trenuje model i zapisuje `backend/stock_prediction_model.pkl`
-
-### 3. Uruchomienie backendu
-
-```bash
-uvicorn backend.main:app --reload
-```
-
-API dostępne pod: `http://localhost:8000`
-Dokumentacja Swagger: `http://localhost:8000/docs`
-
-### 4. Uruchomienie frontendu
-
-```bash
-cd frontend
-npm install
-npm run dev
-```
-
-Frontend dostępny pod: `http://localhost:5173`
+Widoki: Dashboard · Użytkownicy (ban/unban/limit) · Zużycie tokenów · Sesje
 
 ---
 
-## API Endpoints
+## Architektura
 
-| Metoda | Endpoint | Opis |
-|---|---|---|
-| GET | `/api/tickers` | Lista dostępnych spółek |
-| GET | `/api/financials/price` | Ceny wszystkich spółek (daily) |
-| GET | `/api/financials/price/{ticker}` | Ceny jednej spółki |
-| GET | `/api/financials/edgar` | Dane finansowe wszystkich spółek (CATS) |
-| GET | `/api/financials/edgar/{ticker}` | Dane finansowej jednej spółki |
-| GET | `/api/financials/features` | Features wszystkich spółek |
-| GET | `/api/financials/features/{ticker}` | Features + cena jednej spółki |
-| GET | `/api/model/metrics` | Metryki modelu (R², MAE, Hit Rate) |
-| GET | `/api/model/feature_importance` | Ważność zmiennych (top 30) |
-| GET | `/api/model/predict/{ticker}` | Predykcja zwrotu na 3 miesiące |
-| GET | `/health` | Health check |
+```
+Internet → nginx (port 80)
+              ├── /        → React SPA
+              ├── /api/*   → FastAPI backend (port 8000)
+              ├── /auth/*  → Auth endpoints
+              └── /admin/* → Admin API
 
----
+localhost:8080 → Admin panel (tylko SSH tunnel)
 
-## Zmienne finansowe (CATS)
-
-Dane bez standaryzacji, bezpośrednio z raportów EDGAR:
-
-**Income Statement:** `revenue`, `operating_income`, `net_income`, `gross_profit`, `cost_of_goods_and_services_sold`, `income_tax_expense`, `nonoperating_income_expense`, `research_and_development_expense`
-
-**Balance Sheet:** `total_assets`, `total_liabilities`, `total_stockholders_equity`, `cash_and_cash_equivalents`, `total_current_assets`, `total_current_liabilities`, `accounts_receivable`, `accounts_payable`, `retained_earnings`, `property_plant_and_equipment`
-
-**Cash Flow:** `net_cash_from_operating_activities`, `net_cash_from_investing_activities`, `net_cash_from_financing_activities`, `net_change_in_cash`
-
-**EPS:** `earnings_per_share_basic_`, `earnings_per_share_diluted_`
-
----
-
-## Automatyczne odświeżanie danych
-
-APScheduler uruchomiony w tle FastAPI:
-
-- **00:05** — pobranie nowych cen z yfinance (tylko od ostatniego wpisu)
-- **01:00** — sprawdzenie nowych raportów 10-Q/10-K w EDGAR → jeśli nowe: feature engineering → retrain modelu
-
----
-
-## Deploy na AWS
-
-### Backend (EC2)
-
-```bash
-chmod +x deploy/ec2_setup.sh
-# Na instancji EC2 Ubuntu 22.04:
-./deploy/ec2_setup.sh
+FastAPI → PostgreSQL (AWS RDS)
+       → OpenAI API (gpt-4o-mini)
+       → SEC EDGAR (edgartools)
+       → yfinance (ceny akcji)
+       → FRED (dane makro)
 ```
 
-### Frontend (S3 + CloudFront)
+### Stack
+
+| Warstwa | Technologia |
+|---|---|
+| Frontend | React 19 + TypeScript + Vite + Recharts + TailwindCSS |
+| Backend | Python 3.11 + FastAPI + uvicorn (4 workers) |
+| Baza danych | PostgreSQL (AWS RDS) |
+| Deployment | Docker Compose na AWS EC2 Ubuntu |
+| Auth | Sesje serwerowe + Argon2id + TOTP |
+| AI | OpenAI gpt-4o-mini + tool calling |
+| ML | scikit-learn Random Forest |
+
+---
+
+## Tabele w bazie
+
+| Tabela | Zawartość |
+|---|---|
+| `prices` | Dzienne ceny akcji (OHLCV) |
+| `financials` | Kwartalne dane finansowe z 10-K/10-Q |
+| `features` | ~60 wskaźników per spółka per kwartał |
+| `predictions` | Predykcje ML zwrotów |
+| `model_metrics` | Metryki modelu (R², MAE, hit rate) |
+| `macro_data` | Dane FRED (dzienne/miesięczne/kwartalne) |
+| `users` | Konta użytkowników |
+| `sessions` | Sesje serwerowe |
+| `token_usage` | Zużycie tokenów LLM per user |
+| `user_limits` | Miesięczne limity tokenów per user |
+| `login_attempts` | Historia prób logowania |
+| `verification_tokens` | Tokeny jednorazowe (2FA pending) |
+
+---
+
+## Deployment
+
+### Zmienne środowiskowe `.env`
+
+```env
+DB_HOST=...
+DB_NAME=...
+DB_USER=...
+DB_PASS=...
+DB_PORT=5432
+OPENAI_API_KEY=...
+SESSION_SECRET=<64 bytes hex>        # python -c "import secrets; print(secrets.token_hex(64))"
+TOTP_ENCRYPTION_KEY=<32 bytes hex>   # python -c "import secrets; print(secrets.token_hex(32))"
+ADMIN_EMAIL=...
+ADMIN_PASSWORD=...
+```
+
+### Pierwsze uruchomienie
 
 ```bash
-# Ustaw zmienne środowiskowe:
-export BUCKET_NAME=med-frontend-bucket
-export CF_DISTRIBUTION_ID=XXXXXXXXXXXXX
-export VITE_API_URL=http://<EC2-PUBLIC-IP>/api
+git clone ... && cd DW_FINANCE
+cp .env.example .env && nano .env
+docker-compose up --build -d
+docker-compose exec backend python -m backend.migrate_auth
+```
 
-chmod +x deploy/s3_deploy.sh
-./deploy/s3_deploy.sh
+### Update
+
+```bash
+git pull
+docker-compose stop backend frontend && docker-compose rm -f backend frontend
+docker-compose up --build -d backend frontend
 ```
 
 ---
 
-## Autorzy
+## Checklist przed pokazaniem projektu
 
-Projekt roczny — Metody Eksploracji Danych
-Mikołaj Ciuba
+### Krytyczne
+
+- [ ] `SESSION_SECRET` i `TOTP_ENCRYPTION_KEY` w `.env` nie są `CHANGE_ME`
+- [ ] `ADMIN_EMAIL` i `ADMIN_PASSWORD` ustawione
+- [ ] Migracja auth uruchomiona: `docker-compose exec backend python -m backend.migrate_auth`
+- [ ] Czas serwera zsynchronizowany (wymagane dla TOTP): `sudo timedatectl set-ntp true`
+- [ ] Aplikacja dostępna pod EC2 IP na porcie 80
+- [ ] Rejestracja działa i 2FA setup działa
+- [ ] Logowanie z kodem TOTP działa
+- [ ] Chat z agentem odpowiada
+- [ ] Admin panel dostępny przez SSH tunnel na `localhost:8080`
+
+### Dane
+
+- [ ] Ceny akcji załadowane (wykres w "Ceny Akcji")
+- [ ] Dane finansowe załadowane ("Raporty Finansowe")
+- [ ] Features wyliczone ("Features" — wykresy widoczne)
+- [ ] Dane FRED załadowane ("Zmienne Makro")
+- [ ] Model ML wytrenowany (`stock_prediction_model.pkl` istnieje w kontenerze)
+
+### Dysk EC2
+
+```bash
+df -h                  # powinno być >20% wolnego miejsca
+docker system df       # rozmiar obrazów Docker
+docker system prune -a # wyczyść nieużywane obrazy jeśli mało miejsca
+```
+
+### Test agenta — co zapytać
+
+```
+"Hej, co teraz widzisz?"                          → opis kontekstu bez tool call
+"Jaka była wartość sp500 w maju 2025?"             → get_macro_data z filtrami
+"Jak wyglądało revenue MSFT w Q2 2025?"            → get_financials z datami
+"Jakie są plany NVDA na przyszłość?"               → pyta o zgodę, potem get_filing_text
+"Porównaj marże AAPL i MSFT w ostatnim roku"       → 2x get_features równolegle
+```
+
+---
+
+## Znane ograniczenia
+
+| Ograniczenie | Opis |
+|---|---|
+| EPS historyczny | Dane przed splitami akcji nie są korygowane automatycznie |
+| `get_filing_text` | Pobieranie 5-15 sek, tylko spółki US-listed notowane na EDGAR |
+| Model ML | Demonstracyjny, nie produkcyjny |
+| Tokeny OpenAI | Limit org: 200k TPM. Długie rozmowy z dużymi danymi mogą przekroczyć |
+| Reset hasła | Wyłączony celowo — utrata hasła = nowe konto |
+| 2FA sync | Czas serwera musi być zgodny z NTP, inaczej kody TOTP są odrzucane |
+
+---
+
+## Pliki konfiguracyjne
+
+| Plik | Opis |
+|---|---|
+| `docker-compose.yml` | Serwisy: backend, frontend, admin |
+| `frontend/nginx.conf` | Routing `/api/*`, `/auth/*`, `/admin/*` do backendu |
+| `backend/services/LLM_CONTEXT.md` | Dokumentacja kontekstu agenta AI |
+| `.env` | Zmienne środowiskowe (nie commitować!) |

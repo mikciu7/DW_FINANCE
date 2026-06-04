@@ -17,13 +17,15 @@ export default function ChatWidget({ onClose }: Props) {
     const [input, setInput] = useState("");
     const [isLoading, setIsLoading] = useState(false);
     const messagesEndRef = useRef<HTMLDivElement>(null);
+    const sendingRef = useRef(false);
 
     useEffect(() => {
         messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
     }, [messages]);
 
     const handleSend = async () => {
-        if (!input.trim() || isLoading) return;
+        if (!input.trim() || isLoading || sendingRef.current) return;
+        sendingRef.current = true;
 
         const userMessage = input;
         setInput("");
@@ -77,6 +79,7 @@ export default function ChatWidget({ onClose }: Props) {
             ]);
         } finally {
             setIsLoading(false);
+            sendingRef.current = false;
         }
     };
 

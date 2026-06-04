@@ -13,6 +13,7 @@ from backend.routers import financials, features, model, macro, agent
 from backend.routers import auth as auth_router, admin as admin_router
 from backend.middleware.auth_middleware import require_auth
 from dotenv import load_dotenv
+
 load_dotenv("backend/.env")
 
 limiter = Limiter(key_func=get_remote_address, default_limits=["200/minute"])
