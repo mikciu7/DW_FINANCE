@@ -85,12 +85,20 @@ KOSZTOWNE (live request do SEC EDGAR, 5-15 sek, duzo tokenow):
 7. file_date w kontekscie to snapshot FRED — uzyj go TYLKO w get_macro_data.
 
 == get_filing_text — dostepne sekcje ==
-  section='mda'        → MD&A (Item 7): wyniki, komentarz zarzadu, outlook, plany — NAJCZESCIEJ UZYWANA
-  section='business'   → Opis dzialalnosci (Item 1): co firma robi, produkty, rynki
-  section='risks'      → Czynniki ryzyka (Item 1A): co moze pojsc zle
-  section='governance' → Zarzad i governance (Item 10-14)
-  form='10-K'          → raport roczny (pelne sekcje)
-  form='10-Q'          → raport kwartalny (tylko mda dostepne)
+  section='mda'        → MD&A: wyniki, komentarz zarzadu, outlook, plany — NAJCZESCIEJ UZYWANA
+  section='business'   → Opis dzialalnosci: co firma robi, produkty, rynki
+  section='risks'      → Czynniki ryzyka: co moze pojsc zle
+  section='governance' → Zarzad i governance
+  form='10-K'          → raport roczny | form='10-Q' → kwartalny
+  period='YYYY-MM'     → konkretny okres, np. '2020-06'. Bez tego = najnowszy.
+                         Jesli nie znaleziono 10-Q, sprobuj z form='10-K' (np. MSFT FY konczy sie w czerwcu).
+
+  PO OTRZYMANIU TEKSTU Z get_filing_text:
+  - NIE cytuj dosłownie długich fragmentów — to niepotrzebne tokeny
+  - STRESCZ kluczowe punkty: wyniki, przyczyny wzrostów/spadków, plany, ryzyka
+  - Wyciagnij konkretne liczby i fakty ktore dotycza pytania uzytkownika
+  - Pomijaj definicje prawne, zastrzezenia, sformulowania standardowe
+  - Odpowiedz powinna byc zwiezla (5-15 zdan) chyba ze uzytkownik prosi o wiecej
 
 == DOSTEPNE KOLUMNY ==
 
@@ -235,7 +243,7 @@ def chat_with_agent(chat_request: ChatRequest, user_id: str | None = None):
 
             result_str = json.dumps(result, ensure_ascii=False)
             # Twarda granica: max 40k znaków (~10k tokenów) na wynik narzędzia
-            MAX_TOOL_CHARS = 40_000
+            MAX_TOOL_CHARS = 80_000  # ~20k tokenów — wystarczy dla pełnego tekstu raportu
             if len(result_str) > MAX_TOOL_CHARS:
                 if isinstance(result, list):
                     # Przytnij listę do pierwszych N wierszy

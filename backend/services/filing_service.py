@@ -10,7 +10,17 @@ from edgar import Company, set_identity
 
 set_identity("Mikolaj Ciuba ciubamikolaj22@gmail.com")
 
-MAX_CHARS = 8_000
+MAX_CHARS = 40_000
+
+# Wzorce boilerplate które pojawiają się na początku MD&A — pomijamy je
+_BOILERPLATE_PATTERNS = [
+    # "Note About Forward-Looking Statements" blok
+    r"note about forward.looking statements?[\s\S]{0,2500}?(?=\n#{1,3}\s|\nthe following|\noverview|\nresults of operations)",
+    r"cautionary note regarding forward.looking[\s\S]{0,2500}?(?=\n#{1,3}\s|\noverview|\nresults)",
+    r"special note regarding forward.looking[\s\S]{0,2500}?(?=\n#{1,3}\s|\noverview|\nresults)",
+    # "This Item ... contains forward-looking statements" — AAPL/META styl
+    r"(?:this (?:item|quarterly report|annual report)[^\n]{0,200}contain[^\n]{0,100}forward.looking statements[^\n]{0,200}\n)[\s\S]{0,2000}?(?=\n#{1,3}\s|\noverview|\nresults of operations|\nexecutive overview)",
+]
 
 # Mapowanie sekcji → atrybuty obj() i wzorce nagłówków w surowym tekście
 SECTION_CONFIG = {
@@ -74,7 +84,10 @@ def _clean(text: str) -> str:
         text = re.sub(r"(?<=[A-Za-z0-9,;:]) (?=[A-Za-z0-9,;:])", "", text)
     text = re.sub(r"[^\S\n]+", " ", text)
     text = re.sub(r"\n{3,}", "\n\n", text)
-    text = text.replace("’", "'").replace("‘", "'").replace("–", "-").replace("—", "-")
+    text = text.replace("’", "’").replace("‘", "’").replace("–", "-").replace("—", "-")
+    # Usuń boilerplate forward-looking statements
+    for pat in _BOILERPLATE_PATTERNS:
+        text = re.sub(pat, "", text, flags=re.IGNORECASE | re.DOTALL)
     return text.strip()
 
 
@@ -120,8 +133,13 @@ def get_filing_text(
     ticker: str,
     section: str = "mda",
     form: str = "10-K",
+    period: str | None = None,
     max_chars: int = MAX_CHARS,
 ) -> dict:
+    """
+    period: rok-miesiąc lub rok-miesiąc-dzień, np. '2020-06' lub '2020-06-30'.
+            Jeśli None — pobiera najnowszy raport.
+    """
     ticker = ticker.upper()
     key = ALIASES.get(section.lower(), section.lower())
     cfg = SECTION_CONFIG.get(key)
@@ -131,12 +149,41 @@ def get_filing_text(
 
     try:
         company = Company(ticker)
-        filings = company.get_filings(form=form)
+        # Jeśli szukamy historycznego raportu, rozszerzamy zakres dat
+        if period and period[:4] < "2022":
+            filings = company.get_filings(form=form, filing_date=f"{period[:4]}-01-01:{period[:4]}-12-31")
+        else:
+            filings = company.get_filings(form=form)
         filing_list = list(filings)
         if not filing_list:
             return {"error": f"Brak zgłoszeń {form} dla {ticker}"}
 
-        filing = filing_list[0]
+        # Znajdź raport z odpowiedniego okresu
+        filing = None
+        if period:
+            period_prefix = period[:7]  # "2020-06"
+            for f in filing_list:
+                f_period = str(getattr(f, "period_of_report", ""))[:7]
+                if f_period == period_prefix:
+                    filing = f
+                    break
+            if filing is None:
+                available = sorted(set(
+                    str(getattr(f, "period_of_report", ""))[:7]
+                    for f in filing_list
+                ), reverse=True)[:8]
+                other_form = "10-K" if form == "10-Q" else "10-Q"
+                return {
+                    "error": (
+                        f"Nie znaleziono {form} dla {ticker} z okresu {period}. "
+                        f"Dostępne okresy dla {form}: {available}. "
+                        f"Wskazówka: okres {period} może być zawarty w {other_form} — spróbuj z form='{other_form}'."
+                    ),
+                    "available_periods": available,
+                    "suggested_form": other_form,
+                }
+        else:
+            filing = filing_list[0]
         period = str(getattr(filing, "period_of_report", ""))
         filed  = str(getattr(filing, "filing_date", ""))
 

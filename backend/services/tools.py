@@ -205,9 +205,13 @@ tools = [
                         "enum": ["10-K", "10-Q"],
                         "description": "Typ raportu: '10-K' = roczny (pełne sekcje), '10-Q' = kwartalny (tylko mda)."
                     },
+                    "period": {
+                        "type": "string",
+                        "description": "Okres raportu w formacie YYYY-MM lub YYYY-MM-DD, np. '2020-06' lub '2020-06-30'. Pomiń aby pobrać najnowszy raport."
+                    },
                     "max_chars": {
                         "type": "integer",
-                        "description": "Maksymalna liczba znaków do zwrócenia. Domyślnie 6000. Zwiększ tylko gdy użytkownik WYRAŹNIE poprosił o pełną treść po zobaczeniu że tekst był skrócony."
+                        "description": "Maksymalna liczba znaków. Domyślnie 6000. Zwiększ tylko gdy użytkownik poprosił o pełną wersję."
                     }
                 },
                 "required": ["ticker", "section"]
