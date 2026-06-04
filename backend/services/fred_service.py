@@ -1,4 +1,4 @@
-import os
+﻿import os
 import re
 from typing import Optional
 
@@ -35,7 +35,7 @@ def load_fred_data_from_source(data_source):
         df['data_type'] = data_type
         df['file_date'] = data_date
 
-        # Filtrowanie tylko tych kolumn, które mamy w MACRO_COLS + klucze
+        # Filtrowanie tylko tych kolumn, ktĂłre mamy w MACRO_COLS + klucze
         available_cols = [c for c in MACRO_COLS if c in df.columns]
         cols_to_insert = ['date', 'data_type', 'file_date'] + available_cols
 
@@ -63,28 +63,30 @@ def load_fred_data_from_source(data_source):
 
 
 def get_available_file_dates():
-    # bedzie zwracac liste unikalnych dat plików dostepnych
+    # bedzie zwracac liste unikalnych dat plikĂłw dostepnych
     # w bazie dla Reacta, jakbysmy chcieli wyswietlac dane z backupow
     with get_connection() as conn:
         with conn.cursor() as cur:
             cur.execute("SELECT DISTINCT file_date FROM macro_data ORDER BY file_date DESC")
             return [str(r[0]) for r in cur.fetchall()]
 
-def get_macro_data(file_date: str, start_date: Optional[str] = None, end_date: Optional[str] = None) -> list[dict]:
+def get_macro_data(file_date: str, start_date: Optional[str] = None, end_date: Optional[str] = None, columns: Optional[list] = None) -> list[dict]:
     """
     Pobiera dane z tabeli macro_data dla podanego snapshotu (file_date).
     Opcjonalnie filtruje po zakresie dat.
     """
 
 
-    print(f"[DEBUG BAZY] Wywołano get_macro_data z parametrami:")
+    print(f"[DEBUG BAZY] WywoĹ‚ano get_macro_data z parametrami:")
     print(f"-> file_date: {file_date}")
     print(f"-> start_date: {start_date}")
     print(f"-> end_date: {end_date}")
 
 
     # Budujemy dynamiczne zapytanie
-    query = "SELECT date, data_type, file_date, " + ", ".join(MACRO_COLS) + " FROM macro_data WHERE file_date = %s"
+    safe_cols = [c for c in (columns or []) if c in MACRO_COLS]
+    select_cols = safe_cols if safe_cols else MACRO_COLS
+    query = "SELECT date, data_type, " + ", ".join(select_cols) + " FROM macro_data WHERE file_date = %s"
     params = [file_date]
 
     if start_date:
@@ -101,7 +103,7 @@ def get_macro_data(file_date: str, start_date: Optional[str] = None, end_date: O
             cur.execute(query, params)
             rows = cur.fetchall()
 
-    # Formatowanie daty dla spójności
+    # Formatowanie daty dla spĂłjnoĹ›ci
     result = []
     for r in rows:
         row_dict = dict(r)
@@ -150,20 +152,20 @@ def get_macro_data(file_date: str, start_date: Optional[str] = None, end_date: O
 #     if 'date' in df.columns:
 #         df['date'] = pd.to_datetime(df['date']).dt.strftime('%Y-%m-%d')
 #
-#     # Przygotowanie wierszy (tylko kolumny które istnieją w pliku i bazie)
+#     # Przygotowanie wierszy (tylko kolumny ktĂłre istniejÄ… w pliku i bazie)
 #     available_cols = [c for c in MACRO_COLS if c in df.columns]
 #     cols_to_insert = ['date'] + available_cols
 #     rows = df[cols_to_insert].where(pd.notnull(df[cols_to_insert]), None).values.tolist()
 #
-#     # 3. Połączenie z RDS i REFRESH (Usuwamy stare, wstawiamy nowe)
+#     # 3. PoĹ‚Ä…czenie z RDS i REFRESH (Usuwamy stare, wstawiamy nowe)
 #     conn = psycopg2.connect(**DB_PARAMS)
 #     try:
 #         with conn.cursor() as cur:
-#             # CZYSZCZENIE: Usuwamy wszystko, co było wcześniej
-#             # Jeśli chcesz czyścić tylko konkretny typ (np. tylko daily), dodaj WHERE
+#             # CZYSZCZENIE: Usuwamy wszystko, co byĹ‚o wczeĹ›niej
+#             # JeĹ›li chcesz czyĹ›ciÄ‡ tylko konkretny typ (np. tylko daily), dodaj WHERE
 #             cur.execute("TRUNCATE TABLE macro_data;")
 #
-#             # INSERT: Wstawiamy świeże dane
+#             # INSERT: Wstawiamy Ĺ›wieĹĽe dane
 #             placeholders = ", ".join(["%s"] * len(cols_to_insert))
 #             col_names = ", ".join(cols_to_insert)
 #             insert_query = f"INSERT INTO macro_data ({col_names}) VALUES ({placeholders})"

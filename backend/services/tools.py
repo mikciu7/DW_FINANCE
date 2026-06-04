@@ -156,21 +156,26 @@ tools = [
         "type": "function",
         "function": {
             "name": "get_macro_data",
-            "description": "Pobiera historyczne wartości wskaźników makroekonomicznych (np. sp500, gdpc1, unrate, dcoilwtico). ZAWSZE używaj tego narzędzia do pytań o widok Zmienne Makroekonomiczne.",
+            "description": "Pobiera historyczne wartości wskaźników makroekonomicznych (np. sp500, gdpc1, unrate, dcoilwtico). ZAWSZE filtruj columns i daty — bez filtrowania zwróci dziesiątki tysięcy wierszy.",
             "parameters": {
                 "type": "object",
                 "properties": {
                     "file_date": {
                         "type": "string",
-                        "description": "Data snapshotu danych (np. '2026-06-01'). Zawsze bierz ją z kontekstu widoku."
+                        "description": "Data snapshotu danych (np. '2026-06-01'). Bierz z kontekstu widoku."
+                    },
+                    "columns": {
+                        "type": "array",
+                        "items": {"type": "string"},
+                        "description": "Lista zmiennych FRED do zwrócenia, np. ['sp500', 'unrate', 'gdpc1']. ZAWSZE podaj — bez tego zwróci wszystkie 30 zmiennych."
                     },
                     "start_date": {
                         "type": "string",
-                        "description": "Data początkowa analizy (opcjonalna)."
+                        "description": "Data początkowa w formacie YYYY-MM-DD. ZAWSZE podaj."
                     },
                     "end_date": {
                         "type": "string",
-                        "description": "Data końcowa analizy (opcjonalna)."
+                        "description": "Data końcowa w formacie YYYY-MM-DD. ZAWSZE podaj."
                     }
                 },
                 "required": ["file_date"]

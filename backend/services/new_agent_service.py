@@ -27,10 +27,31 @@ class ChatRequest(BaseModel):
     history: list[ChatMessage] = []
     context: ChatContext
 
-SYSTEM_PROMPT = """JesteĹ› asystentem finansowym aplikacji NeoEye, ktĂłry pomaga uĹĽytkownikowi analizowaÄ‡ dane gieĹ‚dowe.
-Masz dostÄ™p do narzÄ™dzi pozwalajÄ…cych pobieraÄ‡ dane finansowe, ceny akcji i wskaĹşniki z bazy danych.
-Kiedy uĹĽytkownik pyta o dane, ZAWSZE uĹĽyj odpowiedniego narzÄ™dzia zamiast odpowiadaÄ‡ z pamiÄ™ci.
-Odpowiadaj zwiÄ™Ĺşle i konkretnie, w jÄ™zyku polskim."""
+SYSTEM_PROMPT = """Jestes asystentem finansowym aplikacji NeoEye.
+Masz dostep do narzedzi pobierajacych dane z bazy. Kiedy uzytkownik pyta o dane, ZAWSZE uzyj narzedzia.
+Odpowiadaj zwiezle i konkretnie, w jezyku polskim.
+
+DOSTEPNE KOLUMNY - uzywaj dokladnych nazw przy wywolaniu narzedzi:
+
+get_financials / get_features: columns=["nazwa"]
+  Finansowe: revenue, operating_income, net_income, gross_profit, cost_of_goods_and_services_sold,
+    income_tax_expense, nonoperating_income_expense, research_and_development_expense,
+    total_assets, total_liabilities, total_stockholders_equity, cash_and_cash_equivalents,
+    total_current_assets, total_current_liabilities, accounts_receivable, accounts_payable,
+    retained_earnings, property_plant_and_equipment,
+    net_cash_from_operating_activities, net_cash_from_investing_activities,
+    net_cash_from_financing_activities, net_change_in_cash,
+    earnings_per_share_basic_, earnings_per_share_diluted_
+  Wskazniki: profit_margin, gross_margin, operating_margin, roa, roe, roic, operating_cf_margin,
+    revenue_growth_qoq, revenue_growth_yoy, earnings_growth_qoq, earnings_growth_yoy,
+    pe_ratio, debt_to_assets, current_ratio, fcf_margin, price_momentum_12m,
+    eps_surprise, revenue_surprise, earnings_surprise, quality_score, growth_score, momentum_score
+
+get_macro_data: columns=["nazwa"]
+  Dzienne: sp500, dff, dgs2, dgs10=dgs1, dcoilwtico, dexuseu, dexchus, bamlh0a0hym2
+  Miesieczne: cpiaucsl, unrate, m2sl, fedfunds, umcsent, houst
+  Kwartalne: gdpc1, gfdebtn, t10y2y
+"""
 
 def _build_context_prefix(ctx: ChatContext) -> str:
     lines = [f"UĹĽytkownik aktualnie przeglÄ…da zakĹ‚adkÄ™: **{ctx.page}**."]
@@ -145,9 +166,22 @@ def chat_with_agent(chat_request: ChatRequest, user_id: str | None = None):
 
             print("="*50 + "\n")
 
+            result_str = json.dumps(result, ensure_ascii=False)
+            # Twarda granica: max 40k znaków (~10k tokenów) na wynik narzędzia
+            MAX_TOOL_CHARS = 40_000
+            if len(result_str) > MAX_TOOL_CHARS:
+                if isinstance(result, list):
+                    # Przytnij listę do pierwszych N wierszy
+                    trimmed = result[:100]
+                    result_str = json.dumps(trimmed, ensure_ascii=False)
+                    result_str += f"\n[...skrócono: pokazano 100 z {len(result)} wierszy]"
+                else:
+                    result_str = result_str[:MAX_TOOL_CHARS] + "...[skrócono]"
+                print(f"   ⚠️ Wynik skrócony: {len(result_str)} znaków")
+
             messages.append({
                 "role": "tool",
                 "tool_call_id": tc["id"],
-                "content": json.dumps(result, ensure_ascii=False)
+                "content": result_str
             })
 
