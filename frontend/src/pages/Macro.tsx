@@ -178,8 +178,9 @@ const Macro = () => {
             metric: selectedMetrics.toString(), // Przekazujemy listę np. ['gdpc1', 'unrate']
             metricLabel: labels.join(", "), // Przekazujemy czytelne nazwy
             dateRange: dateRange.start && dateRange.end ? dateRange : undefined, // Slice & Dice
+            fileDate: selectedFileDate
         });
-    }, [selectedMetrics, dateRange, setView]);
+    }, [selectedMetrics, dateRange, selectedFileDate ,setView]);
 
     useEffect(() => {
         if (availableRange.min && availableRange.max) {

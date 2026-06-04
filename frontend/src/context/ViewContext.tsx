@@ -8,6 +8,7 @@ export interface ViewState {
     metricLabel?: string;
     tab?: string;
     dateRange?: { start: string; end: string };
+    fileDate?: string;
 }
 
 interface ViewContextType {
