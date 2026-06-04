@@ -135,17 +135,36 @@ export default function ChatWidget({ onClose }: Props) {
                 ) : (
                     messages.map((msg, idx) => (
                         <div key={idx} className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}>
-                            <div className={`max-w-[80%] px-4 py-2.5 rounded-2xl text-sm leading-relaxed ${
+                            <div className={`max-w-[85%] px-4 py-3 rounded-2xl text-sm ${
                                 msg.role === "user"
                                     ? "bg-blue-600 text-white rounded-br-sm"
-                                    : "bg-slate-800 text-slate-100 rounded-bl-sm border border-slate-700"
+                                    : "bg-slate-800 text-slate-200 rounded-bl-sm border border-slate-700"
                             }`}>
                                 {msg.role === "assistant" ? (
-                                    <ReactMarkdown className="prose prose-sm prose-invert max-w-none">
+                                    <ReactMarkdown
+                                        components={{
+                                            h1: ({children}) => <h1 className="text-base font-bold text-white mt-3 mb-1 first:mt-0">{children}</h1>,
+                                            h2: ({children}) => <h2 className="text-sm font-bold text-white mt-3 mb-1 first:mt-0">{children}</h2>,
+                                            h3: ({children}) => <h3 className="text-sm font-semibold text-blue-300 mt-2 mb-1 first:mt-0">{children}</h3>,
+                                            p: ({children}) => <p className="mb-2 last:mb-0 leading-relaxed">{children}</p>,
+                                            ul: ({children}) => <ul className="my-1.5 space-y-0.5 pl-1">{children}</ul>,
+                                            ol: ({children}) => <ol className="my-1.5 space-y-0.5 pl-1 list-decimal list-inside">{children}</ol>,
+                                            li: ({children}) => <li className="flex gap-2 leading-relaxed"><span className="text-blue-400 mt-0.5 shrink-0">•</span><span>{children}</span></li>,
+                                            strong: ({children}) => <strong className="font-semibold text-white">{children}</strong>,
+                                            em: ({children}) => <em className="italic text-slate-300">{children}</em>,
+                                            code: ({children}) => <code className="bg-slate-900 border border-slate-700 rounded px-1.5 py-0.5 text-xs font-mono text-blue-300">{children}</code>,
+                                            pre: ({children}) => <pre className="bg-slate-900 border border-slate-700 rounded-lg p-3 mt-2 mb-2 overflow-x-auto text-xs font-mono text-slate-300">{children}</pre>,
+                                            hr: () => <hr className="border-slate-600 my-3" />,
+                                            blockquote: ({children}) => <blockquote className="border-l-2 border-blue-500 pl-3 my-2 text-slate-400 italic">{children}</blockquote>,
+                                            table: ({children}) => <div className="overflow-x-auto my-2"><table className="text-xs border-collapse w-full">{children}</table></div>,
+                                            th: ({children}) => <th className="border border-slate-600 px-2 py-1 bg-slate-700 text-white font-semibold text-left">{children}</th>,
+                                            td: ({children}) => <td className="border border-slate-700 px-2 py-1 text-slate-300">{children}</td>,
+                                        }}
+                                    >
                                         {msg.content}
                                     </ReactMarkdown>
                                 ) : (
-                                    msg.content
+                                    <span className="leading-relaxed">{msg.content}</span>
                                 )}
                             </div>
                         </div>

@@ -2,6 +2,7 @@ from backend.services.edgar_service import get_financials, get_latest_financial_
 from backend.services.feature_service import get_features, get_latest_features
 from backend.services.price_service import get_prices, get_latest_price_date
 from backend.services.fred_service import get_available_file_dates, get_macro_data
+from backend.services.filing_service import get_filing_text
 
 tools = [
     {
@@ -181,6 +182,37 @@ tools = [
                 "required": ["file_date"]
             }
         }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "get_filing_text",
+            "description": "Pobiera tekst wybranej sekcji z raportu 10-K lub 10-Q bezpośrednio z EDGAR. KOSZTOWNE — wywołanie trwa 5-15 sekund i zużywa dużo tokenów. Używaj TYLKO gdy użytkownik wprost pyta o treść raportu, strategię, plany, ryzyka, opis działalności lub coś czego nie da się wyliczyć z liczb.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "ticker": {
+                        "type": "string",
+                        "description": "Symbol giełdowy spółki, np. AAPL, NVDA."
+                    },
+                    "section": {
+                        "type": "string",
+                        "enum": ["mda", "business", "risks", "governance"],
+                        "description": "Sekcja raportu: 'mda' = plany/wyniki/outlook (Item 7), 'business' = opis działalności (Item 1), 'risks' = czynniki ryzyka (Item 1A), 'governance' = zarząd."
+                    },
+                    "form": {
+                        "type": "string",
+                        "enum": ["10-K", "10-Q"],
+                        "description": "Typ raportu: '10-K' = roczny (pełne sekcje), '10-Q' = kwartalny (tylko mda)."
+                    },
+                    "max_chars": {
+                        "type": "integer",
+                        "description": "Maksymalna liczba znaków do zwrócenia. Domyślnie 6000. Zwiększ tylko gdy użytkownik WYRAŹNIE poprosił o pełną treść po zobaczeniu że tekst był skrócony."
+                    }
+                },
+                "required": ["ticker", "section"]
+            }
+        }
     }
 ]
 
@@ -193,4 +225,5 @@ TOOL_MAPPING = {
     "get_latest_price_date": get_latest_price_date,
     "get_available_file_dates": get_available_file_dates,
     "get_macro_data": get_macro_data,
+    "get_filing_text": get_filing_text,
 }
